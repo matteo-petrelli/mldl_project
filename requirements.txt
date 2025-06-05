@@ -1,0 +1,7 @@
+torch>=2.0.0
+torchvision
+tqdm
+numpy
+scikit-learn
+PyYAML
+matplotlib
