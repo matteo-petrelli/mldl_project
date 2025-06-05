@@ -1,0 +1,7 @@
+batch_size: 128
+epochs: 100
+lr: 0.03
+weight_decay: 0.0005
+checkpoint_path: ./checkpoints/centralized.pth
+resume_path: null
+log_path: ./logs/centralized_log.json
