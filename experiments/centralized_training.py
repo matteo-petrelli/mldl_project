@@ -81,7 +81,12 @@ def main(args):
     model = load_vit_dino_model(num_classes=100).to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=cfg['lr'], momentum=0.9, weight_decay=cfg['weight_decay'])
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg['epochs'])
+    if cfg["scheduler"] == "cosine":
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg["epochs"])
+    elif cfg["scheduler"] == "step":
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=cfg.get("step_size", 30), gamma=cfg.get("gamma", 0.1))
+    else:
+        scheduler = None
 
     logger = MetricLogger(save_path=cfg['log_path'])
     start_epoch = 0
@@ -94,7 +99,8 @@ def main(args):
         print(f"\nEpoch {epoch+1}/{cfg['epochs']}")
         train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device)
         val_loss, val_acc = evaluate(model, val_loader, criterion, device)
-        scheduler.step()
+        if scheduler is not None: 
+            scheduler.step()
 
         logger.log({
             "epoch": epoch + 1,
