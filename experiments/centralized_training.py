@@ -155,10 +155,11 @@ def main(args):
         if "log_drive_path" in cfg:
             os.makedirs(os.path.dirname(cfg["log_drive_path"]), exist_ok=True)
             shutil.copy(cfg['log_path'], cfg["log_drive_path"])
-
+            
+            print(f"Log locale: {cfg['log_path']}")
+            print(f"Log Drive: {cfg['log_drive_path']}")
+    
         # Confirmation messages
-        print(f"Checkpoint locale salvato: {cfg['checkpoint_path']}")
-        print(f"Checkpoint backup Drive: {cfg['checkpoint_drive_path']}")
         print(f"Log locale: {cfg['log_path']}")
         print(f"Log Drive: {cfg['log_drive_path']}")
 
