@@ -6,17 +6,56 @@ from torchvision.models import vit_b_16
 import os
 import argparse
 import yaml
+import json
 from tqdm import tqdm
+import shutil
 
 from data.cifar100_loader import get_transforms, load_cifar100
 from utils.checkpoint import save_checkpoint, load_checkpoint
 from utils.logger import MetricLogger
+
+os.makedirs(os.path.dirname(cfg['checkpoint_drive_path']), exist_ok=True)
+shutil.copy(cfg['checkpoint_path'], cfg['checkpoint_drive_path'])
 
 # You can replace this with the actual DINO ViT-S/16 implementation or load from torchvision if available
 def load_vit_dino_model(num_classes):
     model = vit_b_16(pretrained=True)
     model.heads.head = nn.Linear(model.heads.head.in_features, num_classes)
     return model
+
+def resume_if_possible(cfg, model, optimizer, scheduler):
+    """
+    Resume training from checkpoint and logs. Prioritizes resume from Google Drive if available.
+    """
+    logger = MetricLogger(save_path=cfg['log_path'])
+    start_epoch = 0
+
+    # Load previous log if it exists
+    if os.path.exists(cfg['log_path']):
+        try:
+            with open(cfg['log_path'], 'r') as f:
+                prev_metrics = json.load(f)
+            logger.metrics = prev_metrics
+            start_epoch = len(prev_metrics)
+            print(f"Resumed log from epoch {start_epoch}")
+        except Exception as e:
+            print(f"[Logger] Failed to load log: {e}")
+
+    # Check if checkpoint exists (Drive > Local)
+    resume_path = None
+    if os.path.exists(cfg.get("checkpoint_drive_path", "")):
+        resume_path = cfg["checkpoint_drive_path"]
+    elif os.path.exists(cfg.get("checkpoint_path", "")):
+        resume_path = cfg["checkpoint_path"]
+
+    # Load checkpoint if available
+    if resume_path:
+        checkpoint_epoch = load_checkpoint(resume_path, model, optimizer, scheduler)
+        start_epoch = max(start_epoch, checkpoint_epoch)
+        print(f"Resumed model from checkpoint at epoch {checkpoint_epoch} ({resume_path})")
+
+    return start_epoch, logger
+
 
 def train_one_epoch(model, dataloader, criterion, optimizer, device):
     model.train()
