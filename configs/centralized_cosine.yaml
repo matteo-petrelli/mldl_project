@@ -4,5 +4,7 @@ epochs: 10
 momentum: 0.9
 weight_decay: 0.0005
 scheduler: "cosine"
+checkpoint_drive_path: "drive/MyDrive/mldl_checkpoints/centralized_cosine.pth"
 checkpoint_path: "./checkpoints/centralized_cosine.pth"
 log_path: "./logs/centralized_cosine.json"
+log_drive_path: "drive/MyDrive/mldl_checkpoints/centralized_cosine.json"
