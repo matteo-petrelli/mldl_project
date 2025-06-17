@@ -88,18 +88,13 @@ def main(args):
     else:
         scheduler = None
 
-    logger = MetricLogger(save_path=cfg['log_path'])
-    start_epoch = 0
-
-    # Resume checkpoint if exists
-    if cfg.get("resume_path"):
-        start_epoch = load_checkpoint(cfg["resume_path"], model, optimizer, scheduler)
+    start_epoch, logger = resume_if_possible(cfg, model, optimizer, scheduler)
 
     for epoch in range(start_epoch, cfg['epochs']):
         print(f"\nEpoch {epoch+1}/{cfg['epochs']}")
         train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device)
         val_loss, val_acc = evaluate(model, val_loader, criterion, device)
-        if scheduler is not None: 
+        if scheduler is not None:
             scheduler.step()
 
         logger.log({
@@ -110,11 +105,18 @@ def main(args):
             "val_acc": val_acc
         })
 
+        # Save checkpoint in both places
         save_checkpoint(model, optimizer, scheduler, epoch + 1, path=cfg['checkpoint_path'])
+        shutil.copy(cfg['checkpoint_path'], cfg['checkpoint_drive_path'])
 
-    # Final evaluation on test set
+        print(f"Checkpoint saved at: {cfg['checkpoint_path']}")
+        print(f"Drive backup saved at: {cfg['checkpoint_drive_path']}")
+
+    # Test after training
     test_loss, test_acc = evaluate(model, test_loader, criterion, device)
     print(f"\nTest Accuracy: {test_acc*100:.2f}%")
+
+    
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
