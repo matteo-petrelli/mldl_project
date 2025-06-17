@@ -14,8 +14,6 @@ from data.cifar100_loader import get_transforms, load_cifar100
 from utils.checkpoint import save_checkpoint, load_checkpoint
 from utils.logger import MetricLogger
 
-os.makedirs(os.path.dirname(cfg['checkpoint_drive_path']), exist_ok=True)
-shutil.copy(cfg['checkpoint_path'], cfg['checkpoint_drive_path'])
 
 # You can replace this with the actual DINO ViT-S/16 implementation or load from torchvision if available
 def load_vit_dino_model(num_classes):
@@ -146,6 +144,7 @@ def main(args):
 
         # Save checkpoint in both places
         save_checkpoint(model, optimizer, scheduler, epoch + 1, path=cfg['checkpoint_path'])
+        os.makedirs(os.path.dirname(cfg['checkpoint_drive_path']), exist_ok=True)
         shutil.copy(cfg['checkpoint_path'], cfg['checkpoint_drive_path'])
 
         print(f"Checkpoint saved at: {cfg['checkpoint_path']}")
