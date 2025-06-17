@@ -23,36 +23,38 @@ def load_vit_dino_model(num_classes):
 
 def resume_if_possible(cfg, model, optimizer, scheduler):
     """
-    Resume training from checkpoint and logs. Prioritizes resume from Google Drive if available.
+    Resume training from checkpoint and logs. Prioritizes Drive checkpoint/log if available.
     """
-    logger = MetricLogger(save_path=cfg['log_path'])
+    # Prefer log from Drive if it exists
+    log_path = cfg.get('log_drive_path', cfg['log_path'])
+    logger = MetricLogger(save_path=log_path)
     start_epoch = 0
 
-    # Load previous log if it exists
-    if os.path.exists(cfg['log_path']):
+    # Try to resume logs
+    if os.path.exists(log_path):
         try:
-            with open(cfg['log_path'], 'r') as f:
+            with open(log_path, 'r') as f:
                 prev_metrics = json.load(f)
             logger.metrics = prev_metrics
             start_epoch = len(prev_metrics)
-            print(f"Resumed log from epoch {start_epoch}")
+            print(f"[Logger] Resumed log from epoch {start_epoch}")
         except Exception as e:
-            print(f"[Logger] Failed to load log: {e}")
+            print(f"[Logger Warning] Failed to load previous logs: {e}")
 
-    # Check if checkpoint exists (Drive > Local)
+    # Checkpoint resume: prefer Drive path
     resume_path = None
     if os.path.exists(cfg.get("checkpoint_drive_path", "")):
         resume_path = cfg["checkpoint_drive_path"]
     elif os.path.exists(cfg.get("checkpoint_path", "")):
         resume_path = cfg["checkpoint_path"]
 
-    # Load checkpoint if available
     if resume_path:
         checkpoint_epoch = load_checkpoint(resume_path, model, optimizer, scheduler)
         start_epoch = max(start_epoch, checkpoint_epoch)
-        print(f"Resumed model from checkpoint at epoch {checkpoint_epoch} ({resume_path})")
+        print(f"[Checkpoint] Resumed from epoch {checkpoint_epoch} ({resume_path})")
 
     return start_epoch, logger
+
 
 
 def train_one_epoch(model, dataloader, criterion, optimizer, device):
@@ -142,13 +144,23 @@ def main(args):
             "val_acc": val_acc
         })
 
-        # Save checkpoint in both places
+        # Save checkpoint locally
         save_checkpoint(model, optimizer, scheduler, epoch + 1, path=cfg['checkpoint_path'])
+        
+        # Save checkpoint to Drive
         os.makedirs(os.path.dirname(cfg['checkpoint_drive_path']), exist_ok=True)
         shutil.copy(cfg['checkpoint_path'], cfg['checkpoint_drive_path'])
+        
+        # Save log JSON also to Drive
+        if "log_drive_path" in cfg:
+            os.makedirs(os.path.dirname(cfg["log_drive_path"]), exist_ok=True)
+            shutil.copy(cfg['log_path'], cfg["log_drive_path"])
 
-        print(f"Checkpoint saved at: {cfg['checkpoint_path']}")
-        print(f"Drive backup saved at: {cfg['checkpoint_drive_path']}")
+# Confirmation messages
+print(f"Checkpoint locale salvato: {cfg['checkpoint_path']}")
+print(f"Checkpoint backup Drive: {cfg['checkpoint_drive_path']}")
+print(f"Log locale: {cfg['log_path']}")
+print(f"Log Drive: {cfg['log_drive_path']}")
 
     # Test after training
     test_loss, test_acc = evaluate(model, test_loader, criterion, device)
