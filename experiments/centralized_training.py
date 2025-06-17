@@ -143,7 +143,10 @@ def main(args):
             "val_loss": val_loss,
             "val_acc": val_acc
         })
-
+        
+        # Ensure local folders for model and log exist
+        os.makedirs(os.path.dirname(cfg['checkpoint_path']), exist_ok=True)
+        os.makedirs(os.path.dirname(cfg['log_path']), exist_ok=True)
         # Save checkpoint locally
         save_checkpoint(model, optimizer, scheduler, epoch + 1, path=cfg['checkpoint_path'])
         
