@@ -157,11 +157,12 @@ def main(args):
         # Save log JSON also to Drive
         if "log_drive_path" in cfg:
             os.makedirs(os.path.dirname(cfg["log_drive_path"]), exist_ok=True)
-            shutil.copy(cfg['log_path'], cfg["log_drive_path"])
-            print(f"Log Drive: {cfg['log_drive_path']}")
+            if os.path.exists(cfg['log_path']):
+                shutil.copy(cfg['log_path'], cfg["log_drive_path"])
+                print(f"Log locale: {cfg['log_path']}")
+                print(f"Log Drive: {cfg['log_drive_path']}")
         
         # Confirmation message
-        print(f"Log locale: {cfg['log_path']}")
         print(f"Checkpoint locale salvato: {cfg['checkpoint_path']}")
         print(f"Checkpoint backup Drive: {cfg['checkpoint_drive_path']}")
 
