@@ -1,0 +1,10 @@
+batch_size: 64
+lr: 0.005
+epochs: 15
+momentum: 0.9
+weight_decay: 0.001
+scheduler: "cosine"
+checkpoint_path: "./checkpoints/centralized_cosine_2.pth"
+checkpoint_drive_path: "/content/drive/MyDrive/mldl_checkpoints/centralized_cosine_2.pth"
+log_path: "./logs/centralized_cosine_2.json"
+log_drive_path: "/content/drive/MyDrive/mldl_checkpoints/centralized_cosine_2".json"
