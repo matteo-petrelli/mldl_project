@@ -161,15 +161,15 @@ def main(args):
             if "best_model_drive_path" in cfg:
                 os.makedirs(os.path.dirname(cfg["best_model_drive_path"]), exist_ok=True)
                 shutil.copy(cfg["best_model_path"], cfg["best_model_drive_path"])
-                print(f"✅ Nuovo modello migliore salvato (val_acc = {val_acc:.4f})")
+                print(f"New best model saved (val_acc = {val_acc:.4f})")
 
         else:
             patience_counter += 1
-            print(f"🕓 Early stopping pazienza: {patience_counter}/{patience}")
+            print(f"🕓 Early stopping patience: {patience_counter}/{patience}")
 
         # === Early stopping ===
         if patience_counter >= patience:
-            print(f"\n⛔ Early stopping attivato all'epoca {epoch+1} (val_acc non migliora da {patience} epoche)")
+            print(f"\n⛔ Early stopping activated at {epoch+1} (val_acc hasn't improved for {patience} epochs)")
             break
 
         # === Checkpoint standard ===
