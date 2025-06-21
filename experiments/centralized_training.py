@@ -129,6 +129,10 @@ def main(args):
 
     start_epoch, logger = resume_if_possible(cfg, model, optimizer, scheduler)
 
+    best_val_acc = 0.0
+    patience = cfg.get("early_stopping_patience", 5)
+    patience_counter = 0
+
     for epoch in range(start_epoch, cfg['epochs']):
         print(f"\nEpoch {epoch+1}/{cfg['epochs']}")
         train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device)
@@ -143,28 +147,49 @@ def main(args):
             "val_loss": val_loss,
             "val_acc": val_acc
         })
-        
-        # Ensure local folders for model and log exist
+
+        # === Best Model ===
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            patience_counter = 0  # reset patience
+
+            # Save best model locally
+            os.makedirs(os.path.dirname(cfg["best_model_path"]), exist_ok=True)
+            save_checkpoint(model, optimizer, scheduler, epoch + 1, path=cfg["best_model_path"])
+
+            # Save best model to Drive
+            if "best_model_drive_path" in cfg:
+                os.makedirs(os.path.dirname(cfg["best_model_drive_path"]), exist_ok=True)
+                shutil.copy(cfg["best_model_path"], cfg["best_model_drive_path"])
+                print(f"✅ Nuovo modello migliore salvato (val_acc = {val_acc:.4f})")
+
+        else:
+            patience_counter += 1
+            print(f"🕓 Early stopping pazienza: {patience_counter}/{patience}")
+
+        # === Early stopping ===
+        if patience_counter >= patience:
+            print(f"\n⛔ Early stopping attivato all'epoca {epoch+1} (val_acc non migliora da {patience} epoche)")
+            break
+
+        # === Checkpoint standard ===
         os.makedirs(os.path.dirname(cfg['checkpoint_path']), exist_ok=True)
         os.makedirs(os.path.dirname(cfg['log_path']), exist_ok=True)
-        # Save checkpoint locally
         save_checkpoint(model, optimizer, scheduler, epoch + 1, path=cfg['checkpoint_path'])
-        
-        # Save checkpoint to Drive
+
         os.makedirs(os.path.dirname(cfg['checkpoint_drive_path']), exist_ok=True)
         shutil.copy(cfg['checkpoint_path'], cfg['checkpoint_drive_path'])
-        
-        # Save log JSON also to Drive
+
         if "log_drive_path" in cfg:
             os.makedirs(os.path.dirname(cfg["log_drive_path"]), exist_ok=True)
             if os.path.exists(cfg['log_path']):
                 shutil.copy(cfg['log_path'], cfg["log_drive_path"])
                 print(f"Log locale: {cfg['log_path']}")
                 print(f"Log Drive: {cfg['log_drive_path']}")
-        
-        # Confirmation message
+
         print(f"Checkpoint locale salvato: {cfg['checkpoint_path']}")
         print(f"Checkpoint backup Drive: {cfg['checkpoint_drive_path']}")
+
 
     # Test after training
     test_loss, test_acc = evaluate(model, test_loader, criterion, device)
