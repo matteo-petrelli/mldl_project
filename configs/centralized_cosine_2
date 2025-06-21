@@ -8,3 +8,6 @@ checkpoint_path: "./checkpoints/centralized_cosine_2.pth"
 checkpoint_drive_path: "/content/drive/MyDrive/mldl_checkpoints/centralized_cosine_2.pth"
 log_path: "./logs/centralized_cosine_2.json"
 log_drive_path: "/content/drive/MyDrive/mldl_checkpoints/centralized_cosine_2".json"
+early_stopping_patience: 3
+best_model_path: "./checkpoints/best_model.pth"
+best_model_drive_path: "/content/drive/MyDrive/mldl_checkpoints/best_model.pth"
