@@ -2,7 +2,7 @@ K: 100
 C: 0.1
 J: 4
 Nc: 1
-rounds: 10
+rounds: 15
 batch_size: 32
 lr: 0.03
 weight_decay: 0.0005
