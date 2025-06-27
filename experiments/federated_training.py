@@ -7,11 +7,50 @@ import argparse
 from tqdm import tqdm
 from copy import deepcopy
 from torch.utils.data import DataLoader
+import json
+import shutil
 
 from data.cifar100_loader import get_transforms, load_cifar100, iid_split, noniid_split
 from models.vit_dino import get_dino_vit_s16
 from utils.logger import MetricLogger
-from utils.checkpoint import save_checkpoint
+from utils.checkpoint import save_checkpoint, load_checkpoint
+
+from utils.checkpoint import load_checkpoint
+import json
+import shutil
+
+def resume_if_possible(cfg, model):
+    """
+    Resume training from checkpoint and logs. Prefer Drive paths if available.
+    """
+    log_path = cfg.get('log_drive_path', cfg['log_path'])
+    logger = MetricLogger(save_path=log_path)
+    start_round = 1
+
+    # Resume logger
+    if os.path.exists(log_path):
+        try:
+            with open(log_path, 'r') as f:
+                prev_metrics = json.load(f)
+            logger.metrics = prev_metrics
+            start_round = len(prev_metrics) + 1
+            print(f"[Logger] Resumed from round {start_round}")
+        except Exception as e:
+            print(f"[Logger Warning] Failed to load previous logs: {e}")
+
+    # Resume model
+    resume_path = None
+    if os.path.exists(cfg.get("checkpoint_drive_path", "")):
+        resume_path = cfg["checkpoint_drive_path"]
+    elif os.path.exists(cfg.get("checkpoint_path", "")):
+        resume_path = cfg["checkpoint_path"]
+
+    if resume_path:
+        checkpoint_round = load_checkpoint(resume_path, model, optimizer=None, scheduler=None)
+        start_round = max(start_round, checkpoint_round + 1)
+        print(f"[Checkpoint] Resumed from round {checkpoint_round} ({resume_path})")
+
+    return start_round, logger
 
 def train_local(model, dataloader, criterion, optimizer, device, local_epochs):
     """
@@ -73,9 +112,9 @@ def main(args):
     global_model = get_dino_vit_s16(num_classes=100).to(device)
     criterion = nn.CrossEntropyLoss()
 
-    logger = MetricLogger(cfg["log_path"])
+    start_round, logger = resume_if_possible(cfg, global_model)
 
-    for round_num in range(1, cfg["rounds"] + 1):
+    for round_num in range(start_round, cfg["rounds"] + 1):
         print(f"\n--- Round {round_num} ---")
         local_models = []
         selected_clients = torch.randperm(cfg["K"])[:int(cfg["K"] * cfg["C"])]
@@ -102,7 +141,21 @@ def main(args):
         })
 
         if round_num % cfg["save_every"] == 0:
+            os.makedirs(os.path.dirname(cfg["checkpoint_path"]), exist_ok=True)
             save_checkpoint(global_model, None, None, round_num, cfg["checkpoint_path"])
+            print(f"[Checkpoint] Salvato localmente: {cfg['checkpoint_path']}")
+        
+            # Backup su Drive
+            if "checkpoint_drive_path" in cfg:
+                os.makedirs(os.path.dirname(cfg["checkpoint_drive_path"]), exist_ok=True)
+                shutil.copy(cfg["checkpoint_path"], cfg["checkpoint_drive_path"])
+                print(f"[Checkpoint] Backup su Drive: {cfg['checkpoint_drive_path']}")
+        
+            if "log_drive_path" in cfg:
+                os.makedirs(os.path.dirname(cfg["log_drive_path"]), exist_ok=True)
+                if os.path.exists(cfg["log_path"]):
+                    shutil.copy(cfg["log_path"], cfg["log_drive_path"])
+                    print(f"[Log] Copiato su Drive: {cfg['log_drive_path']}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
