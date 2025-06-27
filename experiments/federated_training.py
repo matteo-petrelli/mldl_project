@@ -15,10 +15,6 @@ from models.vit_dino import get_dino_vit_s16
 from utils.logger import MetricLogger
 from utils.checkpoint import save_checkpoint, load_checkpoint
 
-from utils.checkpoint import load_checkpoint
-import json
-import shutil
-
 def resume_if_possible(cfg, model):
     """
     Resume training from checkpoint and logs. Prefer Drive paths if available.
@@ -44,11 +40,12 @@ def resume_if_possible(cfg, model):
         resume_path = cfg["checkpoint_drive_path"]
     elif os.path.exists(cfg.get("checkpoint_path", "")):
         resume_path = cfg["checkpoint_path"]
-
-    if resume_path:
+    try:
         checkpoint_round = load_checkpoint(resume_path, model, optimizer=None, scheduler=None)
         start_round = max(start_round, checkpoint_round + 1)
         print(f"[Checkpoint] Resumed from round {checkpoint_round} ({resume_path})")
+    except Exception as e:
+        print(f"[Checkpoint Warning] Failed to load checkpoint: {e}")
 
     return start_round, logger
 
