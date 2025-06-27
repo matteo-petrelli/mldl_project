@@ -1,17 +1,25 @@
 import torch
 import os
 
-def save_checkpoint(model, optimizer, scheduler, epoch, path):
+def save_checkpoint(model, optimizer=None, scheduler=None, epoch=0, path="checkpoint.pth"):
     """
-    Saves model, optimizer and scheduler state.
+    Saves model, optimizer, and scheduler state (if provided).
     """
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    torch.save({
+
+    checkpoint = {
         'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
-        'scheduler_state_dict': scheduler.state_dict(),
         'epoch': epoch
-    }, path)
+    }
+
+    if optimizer is not None:
+        checkpoint['optimizer_state_dict'] = optimizer.state_dict()
+
+    if scheduler is not None:
+        checkpoint['scheduler_state_dict'] = scheduler.state_dict()
+
+    torch.save(checkpoint, path)
+
 
 def load_checkpoint(path, model, optimizer=None, scheduler=None):
     """
