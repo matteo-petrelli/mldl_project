@@ -139,6 +139,7 @@ def main(args):
 
         if round_num % cfg["save_every"] == 0:
             os.makedirs(os.path.dirname(cfg["checkpoint_path"]), exist_ok=True)
+            os.makedirs(os.path.dirname(cfg["log_path"]), exist_ok=True)
             save_checkpoint(global_model, None, None, round_num, cfg["checkpoint_path"])
             print(f"[Checkpoint] Salvato localmente: {cfg['checkpoint_path']}")
         
