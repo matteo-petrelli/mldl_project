@@ -151,9 +151,8 @@ def main(args):
         
             if "log_drive_path" in cfg:
                 os.makedirs(os.path.dirname(cfg["log_drive_path"]), exist_ok=True)
-                if os.path.exists(cfg["log_path"]):
-                    shutil.copy(cfg["log_path"], cfg["log_drive_path"])
-                    print(f"[Log] Copiato su Drive: {cfg['log_drive_path']}")
+                shutil.copy(cfg["log_path"], cfg["log_drive_path"])
+                print(f"[Log] Copiato su Drive: {cfg['log_drive_path']}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
