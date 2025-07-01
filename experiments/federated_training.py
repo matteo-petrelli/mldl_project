@@ -95,6 +95,7 @@ def main(args):
     with open(args.config, 'r') as f:
         cfg = yaml.safe_load(f)
 
+    os.makedirs(os.path.dirname(cfg["log_path"]), exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     train_tf, test_tf = get_transforms()
     trainset, _, testset = load_cifar100(train_tf, test_tf)
@@ -139,7 +140,6 @@ def main(args):
 
         if round_num % cfg["save_every"] == 0:
             os.makedirs(os.path.dirname(cfg["checkpoint_path"]), exist_ok=True)
-            os.makedirs(os.path.dirname(cfg["log_path"]), exist_ok=True)
             save_checkpoint(global_model, None, None, round_num, cfg["checkpoint_path"])
             print(f"[Checkpoint] Salvato localmente: {cfg['checkpoint_path']}")
         
