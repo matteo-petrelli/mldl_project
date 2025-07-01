@@ -10,5 +10,5 @@ checkpoint_path: "./checkpoints/fedavg_nonidd_2_model.pth"
 log_path: "./logs/federated_nonidd_2_log.json"
 checkpoint_drive_path: "/content/drive/MyDrive/fedavg_nonidd_2_checkpoint.pt"
 log_drive_path: "/content/drive/MyDrive/fedavg_nonidd_2_log.json"
-save_every: 1
+save_every: 5
 sharding: "noniid"  # or "iid"
