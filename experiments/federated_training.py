@@ -15,15 +15,28 @@ from models.vit_dino import get_dino_vit_s16
 from utils.logger import MetricLogger
 from utils.checkpoint import save_checkpoint, load_checkpoint
 
+import os
+import json
+
 def resume_if_possible(cfg, model):
     """
     Resume training from checkpoint and logs. Prefer Drive paths if available.
     """
     log_path = cfg.get('log_drive_path', cfg['log_path'])
+
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+
+    # If the file doesn't exist, initialize it as empty
+    if not os.path.exists(log_path):
+        with open(log_path, 'w') as f:
+            json.dump([], f)
+
+    # Initialize logger
     logger = MetricLogger(save_path=log_path)
     start_round = 1
 
-    # Resume logger
+    # Resume logger if the file is valid
     if os.path.exists(log_path) and os.path.getsize(log_path) > 0:
         try:
             with open(log_path, 'r') as f:
@@ -33,9 +46,23 @@ def resume_if_possible(cfg, model):
             print(f"[Logger] Resumed from round {start_round}")
         except Exception as e:
             print(f"[Logger Warning] Failed to load previous logs: {e}")
-        else:
-            print(f"[Logger] Log file non trovato o vuoto: {log_path}")
 
+    # Resume model checkpoint (Drive has priority)
+    resume_path = None
+    if os.path.exists(cfg.get("checkpoint_drive_path", "")):
+        resume_path = cfg["checkpoint_drive_path"]
+    elif os.path.exists(cfg.get("checkpoint_path", "")):
+        resume_path = cfg["checkpoint_path"]
+
+    if resume_path:
+        try:
+            checkpoint_round = load_checkpoint(resume_path, model, optimizer=None, scheduler=None)
+            start_round = max(start_round, checkpoint_round + 1)
+            print(f"[Checkpoint] Resumed from round {checkpoint_round} ({resume_path})")
+        except Exception as e:
+            print(f"[Checkpoint Warning] Failed to load checkpoint: {e}")
+
+    return start_round, logger
 
     # Resume model
     resume_path = None
@@ -52,9 +79,9 @@ def resume_if_possible(cfg, model):
 
     return start_round, logger
 
-def train_local(model, dataloader, criterion, optimizer, device, local_epochs):
+def train_local(model, dataloader, criterion, optimizer, scheduler, device, local_epochs):
     """
-    Local training for a single client.
+    Local training for a single client with cosine annealing LR scheduler.
     """
     model.train()
     for _ in range(local_epochs):
@@ -65,6 +92,8 @@ def train_local(model, dataloader, criterion, optimizer, device, local_epochs):
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
+        if scheduler:
+            scheduler.step()
     return model.state_dict()
 
 def aggregate_models(global_model, local_models):
@@ -124,10 +153,14 @@ def main(args):
             client_model = deepcopy(global_model)
             client_model.to(device)
             client_loader = DataLoader(client_datasets[client_id], batch_size=cfg["batch_size"], shuffle=True)
+        
             optimizer = optim.SGD(client_model.parameters(), lr=cfg["lr"], momentum=0.9, weight_decay=cfg["weight_decay"])
-            local_state = train_local(client_model, client_loader, criterion, optimizer, device, cfg["J"])
+        
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg["J"])
+        
+            local_state = train_local(client_model, client_loader, criterion, optimizer, scheduler, device, cfg["J"])
             local_models.append(local_state)
-
+            
         # Aggregate local models
         global_model = aggregate_models(global_model, local_models)
 
