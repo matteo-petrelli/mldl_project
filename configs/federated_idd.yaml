@@ -8,7 +8,7 @@ lr: 0.005
 weight_decay: 0.0005
 checkpoint_path: "./checkpoints/fedavg_idd_model.pth"
 log_path: "./logs/federated_idd_log.json"
-checkpoint_drive_path: "/content/drive/MyDrive/fedavg_idd_checkpoint.pt"
-log_drive_path: "/content/drive/MyDrive/fedavg_idd_log.json"
+checkpoint_drive_path: "/content/drive/MyDrive/mldl_checkpoints/fedavg_idd_checkpoint.pt"
+log_drive_path: "/content/drive/MyDrive/mldl_checkpoints/fedavg_idd_log.json"
 save_every: 5
 sharding: "iid"  # or "noniid"
