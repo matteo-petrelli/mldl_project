@@ -24,7 +24,7 @@ def resume_if_possible(cfg, model):
     start_round = 1
 
     # Resume logger
-    if os.path.exists(log_path):
+    if os.path.exists(log_path) and os.path.getsize(log_path) > 0:
         try:
             with open(log_path, 'r') as f:
                 prev_metrics = json.load(f)
@@ -33,6 +33,9 @@ def resume_if_possible(cfg, model):
             print(f"[Logger] Resumed from round {start_round}")
         except Exception as e:
             print(f"[Logger Warning] Failed to load previous logs: {e}")
+        else:
+            print(f"[Logger] Log file non trovato o vuoto: {log_path}")
+
 
     # Resume model
     resume_path = None
