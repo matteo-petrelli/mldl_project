@@ -4,7 +4,7 @@ J: 4
 Nc: 1
 rounds: 100
 batch_size: 32
-lr: 0.01
+lr: 0.005
 weight_decay: 0.0005
 checkpoint_path: "./checkpoints/fedavg_idd_model.pth"
 log_path: "./logs/federated_idd_log.json"
