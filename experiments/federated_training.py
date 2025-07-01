@@ -64,21 +64,6 @@ def resume_if_possible(cfg, model):
 
     return start_round, logger
 
-    # Resume model
-    resume_path = None
-    if os.path.exists(cfg.get("checkpoint_drive_path", "")):
-        resume_path = cfg["checkpoint_drive_path"]
-    elif os.path.exists(cfg.get("checkpoint_path", "")):
-        resume_path = cfg["checkpoint_path"]
-    try:
-        checkpoint_round = load_checkpoint(resume_path, model, optimizer=None, scheduler=None)
-        start_round = max(start_round, checkpoint_round + 1)
-        print(f"[Checkpoint] Resumed from round {checkpoint_round} ({resume_path})")
-    except Exception as e:
-        print(f"[Checkpoint Warning] Failed to load checkpoint: {e}")
-
-    return start_round, logger
-
 def train_local(model, dataloader, criterion, optimizer, scheduler, device, local_epochs):
     """
     Local training for a single client with cosine annealing LR scheduler.
