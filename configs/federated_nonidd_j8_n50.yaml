@@ -1,0 +1,14 @@
+K: 100
+C: 0.1
+J: 8
+Nc: 50
+rounds: 100
+batch_size: 32
+lr: 0.01
+weight_decay: 0.0005
+checkpoint_path: "./checkpoints/fedavg_nonidd_j8_n50_model.pth"
+log_path: "./logs/federated_nonidd_j8_n50_log.json"
+checkpoint_drive_path: "/content/drive/MyDrive/mldl_checkpoints/fedavg_nonidd_j8_n50_checkpoint.pt"
+log_drive_path: "/content/drive/MyDrive/mldl_checkpoints/fedavg_nonidd_j8_n50_log.json"
+save_every: 1
+sharding: "noniid"
