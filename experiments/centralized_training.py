@@ -122,7 +122,12 @@ def main(args):
     model = load_vit_dino_backbone(num_classes=100).to(device)
     criterion = nn.CrossEntropyLoss()
     
-    optimizer = optim.SGD(lambda p: p.requires_grad, model.parameters()), , lr=cfg['lr'], momentum=0.9, weight_decay=cfg['weight_decay'])
+    optimizer = optim.SGD(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr=cfg['lr'],
+        momentum=0.9,
+        weight_decay=cfg['weight_decay']
+    )
     if cfg["scheduler"] == "cosine":
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg["epochs"])
     elif cfg["scheduler"] == "step":
