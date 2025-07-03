@@ -137,8 +137,21 @@ def main(args):
         for client_id in tqdm(selected_clients, desc="Clients training"):
             client_model = deepcopy(global_model)
             client_model.to(device)
-            client_loader = DataLoader(client_datasets[client_id], batch_size=cfg["batch_size"], shuffle=True)
+            
+            for param in client_model.parameters():
+                param.requires_grad = False
         
+            for param in client_model.head.parameters():
+                param.requires_grad = True
+            
+            client_loader = DataLoader(client_datasets[client_id], batch_size=cfg["batch_size"], shuffle=True)
+            optimizer = optim.SGD(
+                filter(lambda p: p.requires_grad, client_model.parameters()), 
+                lr=cfg["lr"],
+                momentum=0.9,
+                weight_decay=cfg["weight_decay"]
+            )
+            
             optimizer = optim.SGD(client_model.parameters(), lr=cfg["lr"], momentum=0.9, weight_decay=cfg["weight_decay"])
         
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg["J"])
