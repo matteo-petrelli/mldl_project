@@ -6,9 +6,9 @@ rounds: 100
 batch_size: 32
 lr: 0.01
 weight_decay: 0.0005
-checkpoint_path: "./checkpoints/fedavg_nonidd_2_model.pth"
-log_path: "./logs/federated_nonidd_2_log.json"
-checkpoint_drive_path: "/content/drive/MyDrive/fedavg_nonidd_2_checkpoint.pt"
-log_drive_path: "/content/drive/MyDrive/fedavg_nonidd_2_log.json"
+checkpoint_path: "./checkpoints/fedavg_nonidd_j4_n5_model.pth"
+log_path: "./logs/federated_nonidd_j4_n5_log.json"
+checkpoint_drive_path: "/content/drive/MyDrive/fedavg_nonidd_j4_n5_checkpoint.pt"
+log_drive_path: "/content/drive/MyDrive/fedavg_nonidd_j4_n5_log.json"
 save_every: 5
 sharding: "noniid"  # or "iid"
