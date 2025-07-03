@@ -12,7 +12,7 @@ import shutil
 from data.cifar100_loader import get_transforms, load_cifar100
 from utils.checkpoint import save_checkpoint, load_checkpoint
 from utils.logger import MetricLogger
-from vit_dino import get_dino_vit_s16 
+from models.vit_dino import get_dino_vit_s16 
 
 # You can replace this with the actual DINO ViT-S/16 implementation or load from torchvision if available
 def load_vit_dino_backbone(num_classes):
