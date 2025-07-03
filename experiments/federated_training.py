@@ -22,7 +22,7 @@ def resume_if_possible(cfg, model):
     """
     Resume training from checkpoint and logs. Prefer Drive paths if available.
     """
-    log_path = cfg.get('log_drive_path', cfg['log_path'])
+    local_log_path = cfg['log_path']
 
     # Ensure the directory exists
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
