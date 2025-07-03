@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torchvision.models import vit_b_16
 import os
 import argparse
 import yaml
@@ -13,14 +12,17 @@ import shutil
 from data.cifar100_loader import get_transforms, load_cifar100
 from utils.checkpoint import save_checkpoint, load_checkpoint
 from utils.logger import MetricLogger
-
+from vit_dino import get_dino_vit_s16 
 
 # You can replace this with the actual DINO ViT-S/16 implementation or load from torchvision if available
-def load_vit_dino_model(num_classes):
-    model = vit_b_16(pretrained=True)
-    model.heads.head = nn.Linear(model.heads.head.in_features, num_classes)
+def load_vit_dino_backbone(num_classes):
+    model = get_dino_vit_s16(num_classes)
+    for param in model.parameters():
+        param.requires_grad = False
+    for param in model.head.parameters():
+        param.requires_grad = True
     return model
-
+    
 def resume_if_possible(cfg, model, optimizer, scheduler):
     """
     Resume training from checkpoint and logs. Prioritizes Drive checkpoint/log if available.
@@ -117,9 +119,10 @@ def main(args):
     val_loader = DataLoader(valset, batch_size=cfg['batch_size'], shuffle=False, num_workers=2)
     test_loader = DataLoader(testset, batch_size=cfg['batch_size'], shuffle=False, num_workers=2)
 
-    model = load_vit_dino_model(num_classes=100).to(device)
+    model = load_vit_dino_backbone(num_classes=100).to(device)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=cfg['lr'], momentum=0.9, weight_decay=cfg['weight_decay'])
+    
+    optimizer = optim.SGD(lambda p: p.requires_grad, model.parameters()), , lr=cfg['lr'], momentum=0.9, weight_decay=cfg['weight_decay'])
     if cfg["scheduler"] == "cosine":
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg["epochs"])
     elif cfg["scheduler"] == "step":
