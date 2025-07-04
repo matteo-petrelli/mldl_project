@@ -23,35 +23,34 @@ def resume_if_possible(cfg, model):
     Resume training from checkpoint and logs. Prefer Drive paths if available.
     """
     local_log_path = cfg['log_path']
+    #Ensure the local log directory exists
+    os.makedirs(os.path.dirname(local_log_path), exist_ok=True)
 
-    # Ensure the directory exists
-    os.makedirs(os.path.dirname(log_path), exist_ok=True)
-
-    # If the file doesn't exist, initialize it as empty
-    if not os.path.exists(log_path):
-        with open(log_path, 'w') as f:
+    # If the local file doesn't exist, initialize it as empty
+    if not os.path.exists(local_log_path):
+        with open(local_log_path, 'w') as f:
             json.dump([], f)
 
-    # Initialize logger
-    logger = MetricLogger(save_path=log_path)
+    # Initialize logger with the local path
+    logger = MetricLogger(save_path=local_log_path)
     start_round = 1
 
-    # Resume logger if the file is valid
-    if os.path.exists(log_path) and os.path.getsize(log_path) > 0:
+    # Resume logger if the local file is valid
+    if os.path.exists(local_log_path) and os.path.getsize(local_log_path) > 0:
         try:
-            with open(log_path, 'r') as f:
+            with open(local_log_path, 'r') as f:
                 prev_metrics = json.load(f)
             logger.metrics = prev_metrics
             start_round = len(prev_metrics) + 1
-            print(f"[Logger] Resumed from round {start_round}")
+            print(f"[Logger] Resumed from round {start_round} (local: {local_log_path})")
         except Exception as e:
-            print(f"[Logger Warning] Failed to load previous logs: {e}")
+            print(f"[Logger Warning] Failed to load previous local logs: {e}")
 
-    # Resume model checkpoint (Drive has priority)
+    # Resume model checkpoint (Drive has priority for loading checkpoint)
     resume_path = None
-    if os.path.exists(cfg.get("checkpoint_drive_path", "")):
+    if cfg.get("checkpoint_drive_path") and os.path.exists(cfg["checkpoint_drive_path"]):
         resume_path = cfg["checkpoint_drive_path"]
-    elif os.path.exists(cfg.get("checkpoint_path", "")):
+    elif cfg.get("checkpoint_path") and os.path.exists(cfg["checkpoint_path"]):
         resume_path = cfg["checkpoint_path"]
 
     if resume_path:
@@ -63,6 +62,7 @@ def resume_if_possible(cfg, model):
             print(f"[Checkpoint Warning] Failed to load checkpoint: {e}")
 
     return start_round, logger
+
 
 def train_local(model, dataloader, criterion, optimizer, scheduler, device, local_epochs):
     """
