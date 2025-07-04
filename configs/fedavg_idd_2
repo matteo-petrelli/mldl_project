@@ -1,0 +1,14 @@
+K: 100
+C: 0.1
+J: 4
+Nc: 1
+rounds: 100
+batch_size: 32
+lr: 0.01
+weight_decay: 0.0005
+checkpoint_path: "./checkpoints/fedavg_idd_2_model.pth"
+log_path: "./logs/federated_idd_2_log.json"
+checkpoint_drive_path: "/content/drive/MyDrive/mldl_checkpoints/fedavg_idd_2_checkpoint.pt"
+log_drive_path: "/content/drive/MyDrive/mldl_checkpoints/fedavg_idd_2_log.json"
+save_every: 3
+sharding: "iid"  # or "noniid"
