@@ -1,6 +1,6 @@
 batch_size: 64
 lr: 0.005
-epochs: 15
+epochs: 20
 momentum: 0.9
 weight_decay: 0.001
 scheduler: "cosine"
