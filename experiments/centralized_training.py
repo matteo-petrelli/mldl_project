@@ -155,12 +155,14 @@ def main(args):
             "val_loss": val_loss,
             "val_acc": val_acc
         })
-
+        # === Early stopping ===
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            patience_counter = 0  # reset patience
         else:
             patience_counter += 1
             print(f"🕓 Early stopping patience: {patience_counter}/{patience}")
-
-        # === Early stopping ===
+            
         if patience_counter >= patience:
             print(f"\n⛔ Early stopping activated at {epoch+1} (val_acc hasn't improved for {patience} epochs)")
             break
