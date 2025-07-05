@@ -18,6 +18,31 @@ from optimizer.mask_utils import (
     build_mask_randomly
 )
 
+def resume_if_possible(cfg, model, optimizer, scheduler):
+    log_path = cfg.get('log_drive_path', cfg['log_path'])
+    logger = MetricLogger(log_path)
+    start_epoch = 0
+
+    # Resume logs
+    if os.path.exists(log_path):
+        try:
+            with open(log_path, 'r') as f:
+                prev_metrics = json.load(f)
+            logger.metrics = prev_metrics
+            start_epoch = len(prev_metrics)
+            print(f"[Logger] Resumed log from epoch {start_epoch}")
+        except Exception as e:
+            print(f"[Logger Warning] Failed to load previous logs: {e}")
+
+    # Resume checkpoint
+    resume_path = cfg.get("checkpoint_drive_path") if os.path.exists(cfg.get("checkpoint_drive_path", "")) else cfg.get("checkpoint_path")
+    if resume_path and os.path.exists(resume_path):
+        checkpoint_epoch = load_checkpoint(resume_path, model, optimizer, scheduler)
+        start_epoch = max(start_epoch, checkpoint_epoch)
+        print(f"[Checkpoint] Resumed from {resume_path} (epoch {checkpoint_epoch})")
+
+    return start_epoch, logger
+
 # Function to convert the mask dictionary into a list suitable for the optimizer
 def mask_to_param_list(mask_dict, model):
     """
