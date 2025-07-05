@@ -156,21 +156,6 @@ def main(args):
             "val_acc": val_acc
         })
 
-        # === Best Model ===
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
-            patience_counter = 0  # reset patience
-
-            # Save best model locally
-            os.makedirs(os.path.dirname(cfg["best_model_path"]), exist_ok=True)
-            save_checkpoint(model, optimizer, scheduler, epoch + 1, path=cfg["best_model_path"])
-
-            # Save best model to Drive
-            if "best_model_drive_path" in cfg:
-                os.makedirs(os.path.dirname(cfg["best_model_drive_path"]), exist_ok=True)
-                shutil.copy(cfg["best_model_path"], cfg["best_model_drive_path"])
-                print(f"New best model saved (val_acc = {val_acc:.4f})")
-
         else:
             patience_counter += 1
             print(f"🕓 Early stopping patience: {patience_counter}/{patience}")
