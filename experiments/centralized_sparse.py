@@ -124,56 +124,57 @@ def main(args):
 
     # === 2. MODEL LOADING MODIFICATION ===
     # Load the DINO ViT-S/16 model with the specified number of output classes.
-    # All parameters are initially trainable for fine-tuning.
     model = get_dino_vit_s16(num_classes=100).to(device)
     # Define the loss function
     criterion = nn.CrossEntropyLoss()
-    
-    # === 3. INSERT MASK CALIBRATION LOGIC ===
-    # Retrieve the mask calibration rule from the configuration, defaulting to "sensitivity_most"
-    mask_rule = cfg.get("mask_calibration_rule", "sensitivity_most")
-    mask_dict = {}
-
-    print(f"🛠️ Calibrating mask using rule: {mask_rule}")
-    if "sensitivity" in mask_rule:
-        # Create a DataLoader for Fisher Information calculation 
-        fisher_calc_loader = DataLoader(trainset, batch_size=cfg.get("fisher_batch_size", 1), shuffle=False)
-        # Compute the diagonal Fisher Information Matrix
-        fisher = compute_fisher_diagonal(model, fisher_calc_loader, criterion, device)
-        # Determine if we should pick the least sensitive parameters
-        pick_least = (mask_rule == "sensitivity_least")
-        # Build the mask based on sensitivity
-        mask_dict = build_mask_by_sensitivity(fisher, cfg["sparsity_ratio"], pick_least_sensitive=pick_least)
-
-    elif "magnitude" in mask_rule:
-        # Determine if we should pick parameters with the highest magnitude
-        pick_highest = (mask_rule == "magnitude_highest")
-        # Build the mask based on parameter magnitudes
-        mask_dict = build_mask_by_magnitude(model, cfg["sparsity_ratio"], pick_highest_magnitude=pick_highest)
-
-    elif mask_rule == "random":
-        # Build a random mask
-        mask_dict = build_mask_randomly(model, cfg["sparsity_ratio"])
-
-    else:
-        print("No valid mask rule found. Performing dense fine-tuning.")
-        # If no valid rule is found, the mask_dict remains empty.
-        # The optimizer will then behave like a standard SGD as no mask will be applied.
-        pass
-
-    # Convert the mask dictionary into a list of masks for the optimizer
-    mask_list = mask_to_param_list(mask_dict, model)
-
-    # === 4. REPLACE THE OPTIMIZER ===
-    # Use SparseSGDM instead of the standard SGD, passing the created mask.
+    # Inizializza l'ottimizzatore una sola volta con una maschera provvisoria (tutta a 1)
     optimizer = SparseSGDM(
         model.parameters(),
         lr=cfg['lr'],
         momentum=0.9,
         weight_decay=cfg.get('weight_decay', 0.0),
-        mask=mask_list # Pass the computed mask to the optimizer
+        mask=mask_to_param_list({}, model) # Maschera iniziale vuota (tutti 1)
     )
 
+    calibration_rounds = cfg.get("calibration_rounds", 1)
+    print(f"### INIZIO FASE DI CALIBRAZIONE: {calibration_rounds} ROUNDS ###")
+
+    
+    # === 3. INSERT MASK CALIBRATION LOGIC ===
+    for calib_round in range(calibration_rounds):
+        print(f"\n--- Calibration Round {calib_round + 1}/{calibration_rounds} ---")
+        
+        # 1. Calcola la maschera in base allo stato corrente del modello
+        mask_rule = cfg.get("mask_calibration_rule", "sensitivity_most")
+        print(f"🛠️  Ricalcolo maschera con regola: {mask_rule}")
+        mask_dict = {}
+
+        if "sensitivity" in mask_rule:
+            fisher_calc_loader = DataLoader(trainset, batch_size=cfg.get("fisher_batch_size", 1), shuffle=True)
+            fisher = compute_fisher_diagonal(model, fisher_calc_loader, criterion, device) #
+            pick_least = (mask_rule == "sensitivity_least")
+            mask_dict = build_mask_by_sensitivity(fisher, cfg["sparsity_ratio"], pick_least_sensitive=pick_least) #
+        elif "magnitude" in mask_rule:
+            pick_highest = (mask_rule == "magnitude_highest")
+            mask_dict = build_mask_by_magnitude(model, cfg["sparsity_ratio"], pick_highest_magnitude=pick_highest) #
+        elif mask_rule == "random":
+            mask_dict = build_mask_randomly(model, cfg["sparsity_ratio"]) #
+        else:
+            print("Nessuna regola di maschera valida. Si procede con training denso.")
+
+        # 2. Aggiorna la maschera nell'ottimizzatore
+        mask_list = mask_to_param_list(mask_dict, model)
+        optimizer.mask = mask_list
+        print("✅ Maschera aggiornata nell'ottimizzatore.")
+
+        # 3. Affina il modello per 1 epoca per influenzare il prossimo round di calibrazione
+        # (salta questo step nell'ultimo round, perché il training vero e proprio inizierà subito dopo)
+        if calib_round < calibration_rounds - 1:
+            print("💪 Affinamento del modello per 1 epoca con la maschera corrente...")
+            train_one_epoch(model, train_loader, criterion, optimizer, device)
+
+    print("\n### ✅ FASE DI CALIBRAZIONE COMPLETATA ###")
+    print("Inizio del fine-tuning principale con la maschera finale.")
 
     # Initialize the learning rate scheduler
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg["epochs"])
@@ -206,7 +207,6 @@ def main(args):
             "val_acc": val_acc
         })
         
-
         # === Early stopping ===
         if val_acc > best_val_acc:
             best_val_acc = val_acc
