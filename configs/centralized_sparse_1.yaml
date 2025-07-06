@@ -8,6 +8,6 @@ sparsity_ratio: 0.5
 calibration_rounds: 3
 mask_calibration_rule: sensitivity_least  #or sensitivity_most, magnitude_highest, magnitude_lowest, random
 checkpoint_path: ./checkpoints/centralized_sparse_1.pth
-checkpoint_drive_path: /content/drive/MyDrive/mldl_checkpoints//centralized_sparse_1.pth
+checkpoint_drive_path: /content/drive/MyDrive/mldl_checkpoints/centralized_sparse_1.pth
 log_path: ./logs/centralized_sparse_1.json
-log_drive_path: /content/drive/MyDrive/mldl_checkpoints/logs/centralized_sparse_1.json
+log_drive_path: /content/drive/MyDrive/mldl_checkpoints/centralized_sparse_1.json
