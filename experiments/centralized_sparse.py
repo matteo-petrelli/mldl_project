@@ -4,6 +4,8 @@ from torch.utils.data import DataLoader
 import os
 import argparse
 import yaml
+import json
+import shutil
 from tqdm import tqdm
 
 from models.vit_dino import get_dino_vit_s16
@@ -135,7 +137,7 @@ def main(args):
     print(f"🛠️ Calibrating mask using rule: {mask_rule}")
     if "sensitivity" in mask_rule:
         # Create a DataLoader for Fisher Information calculation 
-        fisher_calc_loader = DataLoader(trainset, batch_size=cfg.get("fisher_batch_size", 64), shuffle=False)
+        fisher_calc_loader = DataLoader(trainset, batch_size=cfg.get("fisher_batch_size", 1), shuffle=False)
         # Compute the diagonal Fisher Information Matrix
         fisher = compute_fisher_diagonal(model, fisher_calc_loader, criterion, device)
         # Determine if we should pick the least sensitive parameters
@@ -171,11 +173,16 @@ def main(args):
         weight_decay=cfg.get('weight_decay', 0.0),
         mask=mask_list # Pass the computed mask to the optimizer
     )
-    
+
+
     # Initialize the learning rate scheduler
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg["epochs"]
-    start_epoch = 0 
-    logger = MetricLogger(cfg["log_path"]) # Initialize the metric logger
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg["epochs"])
+
+    start_epoch, logger = resume_if_possible(cfg, model, optimizer, scheduler)
+    
+    best_val_acc = 0.0
+    patience = cfg.get("early_stopping_patience", 5)  # valore di default
+    patience_counter = 0
 
     # Main training loop
     for epoch in range(start_epoch, cfg['epochs']):
@@ -190,7 +197,7 @@ def main(args):
         # Print and log training and validation metrics
         print(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}")
         print(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
-        logger.log({"epoch": epoch + 1, "train_loss": train_loss, "train_acc": train_acc, "val_loss": val_loss, "val_acc": val_acc})
+        
         logger.log({
             "epoch": epoch + 1,
             "train_loss": train_loss,
@@ -198,6 +205,8 @@ def main(args):
             "val_loss": val_loss,
             "val_acc": val_acc
         })
+        
+
         # === Early stopping ===
         if val_acc > best_val_acc:
             best_val_acc = val_acc
