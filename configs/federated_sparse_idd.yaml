@@ -1,0 +1,15 @@
+sharding: "non_iid"   # Tipo di suddivisione dei dati. Opzioni: "non_iid" o "iid".
+K: 100                # Numero totale di client.
+Nc: 10                # Numero di classi per client (usato solo se sharding è "non_iid").
+rounds: 50            # Numero totale di round di comunicazione.
+C: 0.1                # Frazione di client che partecipano a ogni round (10% in questo caso).
+J: 5                  # Numero di epoche di training locale per ogni client.
+batch_size: 64        
+lr: 0.01            
+sparsity_ratio: 0.9   
+mask_calibration_rule: "sensitivity_least" #options: "sensitivity_most", "magnitude_highest", "magnitude_lowest", "random"
+log_path: "./logs/federated_sparse_log.json"
+checkpoint_path: "./checkpoints/federated_sparse.pth"
+save_every: 1        
+log_drive_path: "/content/drive/MyDrive/fl_logs/federated_sparse_log.json"
+checkpoint_drive_path: "/content/drive/MyDrive/fl_checkpoints/federated_sparse.pth"
