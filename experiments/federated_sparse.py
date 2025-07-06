@@ -175,9 +175,23 @@ def main(args):
 
         if round_num % cfg.get("save_every", 10) == 0:
             # La logica di checkpointing è corretta
+            os.makedirs(os.path.dirname(cfg["checkpoint_path"]), exist_ok=True)
             save_checkpoint(global_model, None, None, round_num, cfg["checkpoint_path"])
             print(f"[Checkpoint] Salvato localmente: {cfg['checkpoint_path']}")
-            # ... (e il resto del codice per il backup su Drive)
+            if "checkpoint_drive_path" in cfg:
+                os.makedirs(os.path.dirname(cfg["checkpoint_drive_path"]), exist_ok=True)
+                shutil.copy(cfg["checkpoint_path"], cfg["checkpoint_drive_path"])
+                print(f"[Checkpoint] Backup su Drive: {cfg['checkpoint_drive_path']}")
+        
+            if "log_drive_path" in cfg:
+                os.makedirs(os.path.dirname(cfg["log_drive_path"]), exist_ok=True)
+        
+                if os.path.exists(cfg["log_path"]):
+                    shutil.copy(cfg["log_path"], cfg["log_drive_path"])
+                    print(f"[Log] Copiato su Drive: {cfg['log_drive_path']}")
+                else:
+                    print(f"[Log Warning] Il file di log '{cfg['log_path']}' non esiste e non è stato copiato.")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
