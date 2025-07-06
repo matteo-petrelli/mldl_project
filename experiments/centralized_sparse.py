@@ -191,6 +191,42 @@ def main(args):
         print(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}")
         print(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
         logger.log({"epoch": epoch + 1, "train_loss": train_loss, "train_acc": train_acc, "val_loss": val_loss, "val_acc": val_acc})
+        logger.log({
+            "epoch": epoch + 1,
+            "train_loss": train_loss,
+            "train_acc": train_acc,
+            "val_loss": val_loss,
+            "val_acc": val_acc
+        })
+        # === Early stopping ===
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            patience_counter = 0  # reset patience
+        else:
+            patience_counter += 1
+            print(f"🕓 Early stopping patience: {patience_counter}/{patience}")
+            
+        if patience_counter >= patience:
+            print(f"\n⛔ Early stopping activated at {epoch+1} (val_acc hasn't improved for {patience} epochs)")
+            break
+
+        # === Checkpoint standard ===
+        os.makedirs(os.path.dirname(cfg['checkpoint_path']), exist_ok=True)
+        os.makedirs(os.path.dirname(cfg['log_path']), exist_ok=True)
+        save_checkpoint(model, optimizer, scheduler, epoch + 1, path=cfg['checkpoint_path'])
+
+        os.makedirs(os.path.dirname(cfg['checkpoint_drive_path']), exist_ok=True)
+        shutil.copy(cfg['checkpoint_path'], cfg['checkpoint_drive_path'])
+
+        if "log_drive_path" in cfg:
+            os.makedirs(os.path.dirname(cfg["log_drive_path"]), exist_ok=True)
+            if os.path.exists(cfg['log_path']):
+                shutil.copy(cfg['log_path'], cfg["log_drive_path"])
+                print(f"Log locale: {cfg['log_path']}")
+                print(f"Log Drive: {cfg['log_drive_path']}")
+
+        print(f"Checkpoint locale salvato: {cfg['checkpoint_path']}")
+        print(f"Checkpoint backup Drive: {cfg['checkpoint_drive_path']}")
 
     # Final evaluation on the test set
     test_loss, test_acc = evaluate(model, test_loader, criterion, device)
