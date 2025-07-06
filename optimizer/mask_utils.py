@@ -23,33 +23,57 @@ def compute_fisher_diagonal(model, dataloader, criterion, device):
 def build_mask_by_sensitivity(fisher_dict: dict, sparsity_ratio: float, pick_least_sensitive: bool = False) -> dict:
     """
     Creates a binary mask based on Fisher scores.
-    If pick_least_sensitive is True, it selects (mask=1) the least sensitive parameters for update.
-    Otherwise (default), it selects (mask=1) the most sensitive parameters for update.
-
-    Args:
-        fisher_dict (dict): Dictionary with Fisher scores per parameter.
-        sparsity_ratio (float): Percentage of parameters to NOT update (mask to 0).
-        pick_least_sensitive (bool): If True, the LEAST sensitive parameters are SELECTED for update.
-                                     If False, the MOST sensitive parameters are SELECTED for update.
-    Returns:
-        dict: Mask dictionary per parameter.
+    ...
     """
-    all_scores = torch.cat([f.view(-1) for f in fisher_dict.values()])
+    # Collect all scores in a list first, without immediate concatenation
+    all_scores_list = [f.view(-1) for f in fisher_dict.values()]
 
-    # Calculate the threshold based on the percentage of parameters to be masked.
-    # If sparsity_ratio is 0.8, the threshold will be at the 20th percentile of scores
-    # (meaning 80% of scores are below it).
-    threshold = torch.quantile(all_scores, sparsity_ratio)
+    # Option 1: Sample a subset for quantile calculation if the full tensor is too large
+    # Determine a reasonable sample size, e.g., 1 million elements
+    sample_size = 1_000_000
+    total_elements = sum(f.numel() for f in fisher_dict.values())
+
+    if total_elements > sample_size * 2: # Only sample if the total is significantly larger
+        # Concatenate a subset of elements. This is an approximation.
+        # A more robust sampling would involve randomly picking elements across all tensors.
+        # For simplicity, we'll just take the first 'sample_size' elements
+        # from a concatenated view.
+        # However, for true random sampling, you'd need to consider how to
+        # sample across multiple tensors efficiently without first concatenating all.
+        # A simpler way for a large number of parameters would be to iterate
+        # and collect a sample.
+
+        # More robust (but potentially slower for many small tensors) way to sample:
+        sampled_elements = []
+        current_count = 0
+        for scores in all_scores_list:
+            if current_count >= sample_size:
+                break
+            num_to_take = min(scores.numel(), sample_size - current_count)
+            # Randomly permute and take the first num_to_take
+            perm = torch.randperm(scores.numel(), device=scores.device)
+            sampled_elements.append(scores.view(-1)[perm[:num_to_take]])
+            current_count += num_to_take
+
+        if sampled_elements:
+            sampled_all_scores = torch.cat(sampled_elements)
+        else:
+            raise ValueError("No elements sampled for quantile calculation. Fisher dict might be empty.")
+
+        threshold = torch.quantile(sampled_all_scores, sparsity_ratio)
+        print(f"Warning: Quantile calculated on a sample of {sampled_all_scores.numel()} elements due to large tensor size.")
+    else:
+        # If the total size is manageable, concatenate all scores
+        all_scores = torch.cat(all_scores_list)
+        threshold = torch.quantile(all_scores, sparsity_ratio)
+
     mask = {}
-
     for name, scores in fisher_dict.items():
         if pick_least_sensitive:
-            # Select the least sensitive for update (score < threshold)
             mask[name] = (scores < threshold).float()
         else:
-            # Select the most sensitive for update (score >= threshold)
             mask[name] = (scores >= threshold).float()
-            
+
     return mask
 
 
