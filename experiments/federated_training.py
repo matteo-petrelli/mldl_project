@@ -14,9 +14,14 @@ from data.cifar100_loader import get_transforms, load_cifar100, iid_split, nonii
 from models.vit_dino import get_dino_vit_s16
 from utils.logger import MetricLogger
 from utils.checkpoint import save_checkpoint, load_checkpoint
+from optimizer.sparseSGDM import SparseSGDM
+from optimizer.mask_utils import (
+    compute_fisher_diagonal,
+    build_mask_by_sensitivity,
+    build_mask_by_magnitude,
+    build_mask_randomly
+)
 
-import os
-import json
 
 def resume_if_possible(cfg, model):
     """
