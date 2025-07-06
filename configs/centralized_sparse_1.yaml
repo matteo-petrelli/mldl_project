@@ -5,8 +5,8 @@ lr: 0.01
 weight_decay: 0.0005
 early_stopping_patience: 3
 sparsity_ratio: 0.5  
-mask_calibration_rule: sensitivity_least  
-checkpoint_path: ./checkpoints/centralize_sparse_1.pth
+mask_calibration_rule: sensitivity_least  #or sensitivity_most, magnitude_highest, magnitude_lowest, random
+checkpoint_path: ./checkpoints/centralized_sparse_1.pth
 checkpoint_drive_path: ./drive_backup/centralized_sparse_1.pth
-log_path: ./logs/centralize_sparse_1.json
-log_drive_path: ./drive_backup/logs/centralize_sparse_1.json
+log_path: ./logs/centralized_sparse_1.json
+log_drive_path: ./drive_backup/logs/centralized_sparse_1.json
