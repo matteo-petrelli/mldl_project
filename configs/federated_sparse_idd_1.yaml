@@ -1,1 +1,15 @@
-
+K: 100          
+C: 0.1        
+J: 4            
+rounds: 100     
+sharding: "iid"
+lr: 0.01                
+batch_size: 32          
+calibration_rounds: 10
+mask_calibration_rule: "sensitivity_least"
+sparsity_ratio: 0.5
+save_every: 10  
+checkpoint_path: "./checkpoints/federated/ckpt.pth"
+log_path: "./logs/federated/metrics.json"
+checkpoint_drive_path: "/content/drive/MyDrive/checkpoints/federated/ckpt.pth"
+log_drive_path: "/content/drive/MyDrive/logs/federated/metrics.json"
