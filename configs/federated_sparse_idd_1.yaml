@@ -1,11 +1,11 @@
 K: 100          
 C: 0.1        
 J: 4            
-rounds: 100     
+rounds: 50    
 sharding: "iid"
 lr: 0.01                
 batch_size: 32          
-calibration_interval: 10
+calibration_rounds: 5
 mask_calibration_rule: "sensitivity_least"
 sparsity_ratio: 0.5
 save_every: 10  
