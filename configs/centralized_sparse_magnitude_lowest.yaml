@@ -1,4 +1,3 @@
-
 batch_size: 64
 fisher_batch_size: 1  
 epochs: 15
@@ -9,6 +8,6 @@ calibration_rounds: 3
 sparsity_ratio: 0.5  
 mask_calibration_rule: magnitude_lowest   #or sensitivity_least, magnitude_highest, magnitude_lowest, random
 checkpoint_path: ./checkpoints/centralized_sparse_magnitude_lowest.pth
-checkpoint_drive_path: /content/drive/MyDrive/mldl_checkpoints/centralized_sparse_magnitude_lowestt.pth
+checkpoint_drive_path: /content/drive/MyDrive/mldl_checkpoints/centralized_sparse_magnitude_lowest.pth
 log_path: ./logs/centralized_sparse_magnitude_lowest.json
 log_drive_path: /content/drive/MyDrive/mldl_checkpoints/centralized_sparse_magnitude_lowest.json
