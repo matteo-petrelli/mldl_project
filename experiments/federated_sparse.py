@@ -134,18 +134,19 @@ def main(args):
     start_round, logger = resume_if_possible(cfg, global_model)
 
     client_masks = {}
-    # --- MODIFICA 1: La variabile ora definisce l'intervallo di ricalibrazione ---
-    calibration_interval = cfg.get("calibration_interval", 0) # Default 0 = nessuna ricalibrazione periodica
+    # --- MODIFICA 1: Ripristino della variabile e della logica per la fase iniziale ---
+    # Se non specificato, ogni round è di calibrazione (comportamento originale)
+    calibration_rounds = cfg.get("calibration_rounds", cfg["rounds"])
 
     for round_num in range(start_round, cfg["rounds"] + 1):
-        # --- MODIFICA 2: La condizione ora usa il modulo (%) per la periodicità ---
-        is_recalibration_round = (calibration_interval > 0 and round_num % calibration_interval == 0)
+        # --- MODIFICA 2: La condizione torna ad essere un controllo sulla fase iniziale ---
+        is_calibration_round = (round_num <= calibration_rounds)
 
         print(f"\n--- Round {round_num}/{cfg['rounds']} ---")
-        if is_recalibration_round:
-            print("Mode: 🔄 PERIODIC RECALIBRATION")
+        if is_calibration_round:
+            print("Mode: 🛠️  INITIAL CALIBRATION PHASE")
         else:
-            print("Mode: 💪 FINE-TUNING (using last known masks)")
+            print("Mode: 💪 FINE-TUNING (using fixed masks)")
 
         local_models = []
         selected_clients = torch.randperm(cfg["K"])[:int(cfg["K"] * cfg["C"])]
@@ -156,19 +157,16 @@ def main(args):
             client_model.to(device)
             client_loader = DataLoader(client_datasets[client_id], batch_size=cfg["batch_size"], shuffle=True)
             
-            # --- MODIFICA 3: La logica di decisione si adatta al nuovo scheduling ---
+            # La logica di decisione funziona anche con questo scheduling
             mask_to_use = None
-            if not is_recalibration_round:
-                # Se non è un round di ricalibrazione, prova a usare una maschera esistente
+            if not is_calibration_round:
                 mask_to_use = client_masks.get(client_id, None)
             
-            # Se is_recalibration_round è True, mask_to_use rimane None, forzando un ricalcolo.
-            # La funzione train_local_sparse gestisce già il caso in cui un client nuovo
-            # non abbia una maschera, calcolandone una al volo.
             local_state, used_mask = train_local_sparse(client_model, client_loader, criterion, device, cfg, existing_mask=mask_to_use)
             local_models.append(local_state)
             
-            # Aggiorna sempre il dizionario con la maschera più recente per il client
+            # Salva la maschera calcolata/usata per il client. 
+            # Dopo la fase di calibrazione, questa operazione semplicemente ri-salva la stessa maschera.
             client_masks[client_id] = used_mask
             
         global_model = aggregate_models(global_model, local_models)
