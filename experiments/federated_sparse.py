@@ -10,7 +10,6 @@ from torch.utils.data import DataLoader
 import json
 import shutil
 
-# === 1. AGGIUNGI QUESTI IMPORT ===
 from data.cifar100_loader import get_transforms, load_cifar100, iid_split, noniid_split
 from models.vit_dino import get_dino_vit_s16
 from utils.logger import MetricLogger
@@ -23,24 +22,14 @@ from sparse.mask_utils import (
     build_mask_randomly
 )
 
-
-# === 2. AGGIUNGI LE FUNZIONI HELPER MANCANTI ===
-
 def aggregate_models(global_model, local_models):
-    """
-    Averages model parameters from all participating clients.
-    """
     global_state = global_model.state_dict()
     for key in global_state.keys():
-        # Assicura che tutti i tensori siano float e sullo stesso device prima di fare la media
         global_state[key] = torch.stack([client_state[key].float() for client_state in local_models], dim=0).mean(dim=0)
     global_model.load_state_dict(global_state)
     return global_model
 
 def evaluate(model, dataloader, criterion, device):
-    """
-    Global evaluation on the central test set.
-    """
     model.eval()
     total_loss, correct, total = 0.0, 0, 0
     with torch.no_grad():
@@ -55,20 +44,15 @@ def evaluate(model, dataloader, criterion, device):
     return total_loss / len(dataloader), correct / total
 
 def mask_to_param_list(mask_dict, model):
-    """
-    Convert mask dict into list format matching model parameters.
-    """
     param_masks = []
     for name, param in model.named_parameters():
         if param.requires_grad:
             if name in mask_dict:
                 param_masks.append(mask_dict[name].to(param.device))
             else:
-                # Se un parametro non ha una maschera specifica, la sua maschera è 1 (nessun mascheramento)
                 param_masks.append(torch.ones_like(param))
     return param_masks
 
-# La tua funzione resume_if_possible è corretta.
 def resume_if_possible(cfg, model):
     local_log_path = cfg['log_path']
     os.makedirs(os.path.dirname(local_log_path), exist_ok=True)
@@ -83,7 +67,6 @@ def resume_if_possible(cfg, model):
                 prev_metrics = json.load(f)
             logger.metrics = prev_metrics
             start_round = len(prev_metrics) + 1
-            print(f"[Logger] Resumed from round {start_round}")
         except Exception as e:
             print(f"[Logger Warning] Failed to load previous local logs: {e}")
     resume_path = None
@@ -95,31 +78,34 @@ def resume_if_possible(cfg, model):
         try:
             checkpoint_round = load_checkpoint(resume_path, model, optimizer=None, scheduler=None)
             start_round = max(start_round, checkpoint_round + 1)
-            print(f"[Checkpoint] Resumed from round {checkpoint_round}")
         except Exception as e:
             print(f"[Checkpoint Warning] Failed to load checkpoint: {e}")
     return start_round, logger
 
-
-# La tua funzione train_local_sparse è concettualmente corretta.
-def train_local_sparse(model, dataloader, criterion, device, cfg):
-    mask_rule = cfg.get("mask_calibration_rule")
+# --- MODIFICA 1: La funzione ora accetta una `existing_mask` e restituisce la maschera usata ---
+def train_local_sparse(model, dataloader, criterion, device, cfg, existing_mask=None):
     mask_dict = {}
-    if "sensitivity" in mask_rule:
-        fisher = compute_fisher_diagonal(model, dataloader, criterion, device)
-        pick_least = (mask_rule == "sensitivity_least")
-        mask_dict = build_mask_by_sensitivity(fisher, cfg["sparsity_ratio"], pick_least_sensitive=pick_least)
-    elif "magnitude" in mask_rule:
-        pick_highest = (mask_rule == "magnitude_highest")
-        mask_dict = build_mask_by_magnitude(model, cfg["sparsity_ratio"], pick_highest_magnitude=pick_highest)
-    elif mask_rule == "random":
-        mask_dict = build_mask_randomly(model, cfg["sparsity_ratio"])
+
+    if existing_mask is not None:
+        mask_dict = existing_mask
+    else:
+        mask_rule = cfg.get("mask_calibration_rule")
+        if "sensitivity" in mask_rule:
+            fisher_dataloader = DataLoader(dataloader.dataset, batch_size=1, shuffle=True)
+            fisher = compute_fisher_diagonal(model, fisher_dataloader, criterion, device)
+            pick_least = (mask_rule == "sensitivity_least")
+            mask_dict = build_mask_by_sensitivity(fisher, cfg["sparsity_ratio"], pick_least_sensitive=pick_least)
+        elif "magnitude" in mask_rule:
+            pick_highest = (mask_rule == "magnitude_highest")
+            mask_dict = build_mask_by_magnitude(model, cfg["sparsity_ratio"], pick_highest_magnitude=pick_highest)
+        elif mask_rule == "random":
+            mask_dict = build_mask_randomly(model, cfg["sparsity_ratio"])
     
     mask_list = mask_to_param_list(mask_dict, model)
     optimizer = SparseSGDM(model.parameters(), lr=cfg["lr"], momentum=0.9, mask=mask_list)
     
     model.train()
-    for _ in range(cfg["J"]):  # J = epoche locali
+    for _ in range(cfg["J"]):
         for images, labels in dataloader:
             images, labels = images.to(device), labels.to(device)
             optimizer.zero_grad()
@@ -127,8 +113,9 @@ def train_local_sparse(model, dataloader, criterion, device, cfg):
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
-    return model.state_dict()
-
+    
+    # Restituisce lo stato del modello e la maschera che è stata usata/calcolata
+    return model.state_dict(), mask_dict
 
 def main(args):
     with open(args.config, 'r') as f:
@@ -146,22 +133,40 @@ def main(args):
 
     global_model = get_dino_vit_s16(num_classes=100).to(device)
     criterion = nn.CrossEntropyLoss()
-
-    # === 3. AGGIUNGI LA CHIAMATA A resume_if_possible ===
     start_round, logger = resume_if_possible(cfg, global_model)
+
+    # --- MODIFICA 2: Aggiungi logica per la gestione delle maschere e dei round di calibrazione ---
+    client_masks = {} # Dizionario per memorizzare le maschere finali per ogni client
+    # Se non specificato, ogni round è di calibrazione (comportamento originale)
+    calibration_rounds = cfg.get("calibration_rounds", cfg["rounds"])
 
     for round_num in range(start_round, cfg["rounds"] + 1):
         print(f"\n--- Round {round_num}/{cfg['rounds']} ---")
+        if round_num <= calibration_rounds:
+            print("Mode: 🛠️  CALIBRATION ROUND")
+        else:
+            print("Mode: 💪 FINE-TUNING ROUND (using fixed masks)")
+
         local_models = []
         selected_clients = torch.randperm(cfg["K"])[:int(cfg["K"] * cfg["C"])]
 
-        for client_id in tqdm(selected_clients, desc="Clients training"):
+        for client_id_tensor in tqdm(selected_clients, desc="Clients training"):
+            client_id = client_id_tensor.item()
             client_model = deepcopy(global_model)
             client_model.to(device)
             client_loader = DataLoader(client_datasets[client_id], batch_size=cfg["batch_size"], shuffle=True)
             
-            local_state = train_local_sparse(client_model, client_loader, criterion, device, cfg)
+            # Decide se usare una maschera esistente o calcolarne una nuova
+            mask_to_use = None
+            if round_num > calibration_rounds:
+                mask_to_use = client_masks.get(client_id, None)
+
+            # Esegui il training locale, che restituirà anche la maschera utilizzata
+            local_state, used_mask = train_local_sparse(client_model, client_loader, criterion, device, cfg, existing_mask=mask_to_use)
             local_models.append(local_state)
+            
+            # Salva la maschera calcolata/usata per il client
+            client_masks[client_id] = used_mask
             
         global_model = aggregate_models(global_model, local_models)
         test_loss, test_acc = evaluate(global_model, test_loader, criterion, device)
@@ -174,24 +179,16 @@ def main(args):
         })
 
         if round_num % cfg.get("save_every", 10) == 0:
-            # La logica di checkpointing è corretta
             os.makedirs(os.path.dirname(cfg["checkpoint_path"]), exist_ok=True)
             save_checkpoint(global_model, None, None, round_num, cfg["checkpoint_path"])
-            print(f"[Checkpoint] Salvato localmente: {cfg['checkpoint_path']}")
             if "checkpoint_drive_path" in cfg:
                 os.makedirs(os.path.dirname(cfg["checkpoint_drive_path"]), exist_ok=True)
                 shutil.copy(cfg["checkpoint_path"], cfg["checkpoint_drive_path"])
-                print(f"[Checkpoint] Backup su Drive: {cfg['checkpoint_drive_path']}")
         
             if "log_drive_path" in cfg:
                 os.makedirs(os.path.dirname(cfg["log_drive_path"]), exist_ok=True)
-        
                 if os.path.exists(cfg["log_path"]):
                     shutil.copy(cfg["log_path"], cfg["log_drive_path"])
-                    print(f"[Log] Copiato su Drive: {cfg['log_drive_path']}")
-                else:
-                    print(f"[Log Warning] Il file di log '{cfg['log_path']}' non esiste e non è stato copiato.")
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
