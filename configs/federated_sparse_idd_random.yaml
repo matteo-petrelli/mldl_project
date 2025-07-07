@@ -11,5 +11,5 @@ sparsity_ratio: 0.8
 save_every: 1
 checkpoint_path: "./checkpoints/federated_sparse_idd_random.pth"
 log_path: "./logs/federated_sparse_idd_random.json"
-checkpoint_drive_path: "content/drive/MyDrive/mldl_checkpoints/federated_sparse_idd_random.pth"
-log_drive_path: "content/drive/MyDrive/mldl_checkpoints/federated_sparse_idd_random.json"
+checkpoint_drive_path: "/content/drive/MyDrive/mldl_checkpoints/federated_sparse_idd_random.pth"
+log_drive_path: "/content/drive/MyDrive/mldl_checkpoints/federated_sparse_idd_random.json"
