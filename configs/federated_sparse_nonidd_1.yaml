@@ -1,0 +1,16 @@
+K: 100          
+C: 0.1        
+J: 4    
+Nc: 50
+rounds: 50    
+sharding: "noniid"
+lr: 0.01                
+batch_size: 32          
+calibration_rounds: 5
+mask_calibration_rule: "sensitivity_least"
+sparsity_ratio: 0.5
+save_every: 10  
+checkpoint_path: "./checkpoints/federated_sparse_nonidd_1.pth"
+log_path: "./logs/federated_sparse_nonidd_1.json"
+checkpoint_drive_path: "content/drive/MyDrive/mldl_checkpoints/federated_sparse_nonidd_1.pth"
+log_drive_path: "content/drive/MyDrive/mldl_checkpoints/federated_sparse_nonidd_1.json"
