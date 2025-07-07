@@ -6,7 +6,7 @@ lr: 0.01
 weight_decay: 0.0005
 early_stopping_patience: 3
 calibration_rounds: 5
-sparsity_ratio: 0.5  
+sparsity_ratio: 0.8  
 mask_calibration_rule: magnitude_highest   #or sensitivity_least, magnitude_highest, magnitude_lowest, random
 checkpoint_path: ./checkpoints/centralized_sparse_magnitude_highest.pth
 checkpoint_drive_path: /content/drive/MyDrive/mldl_checkpoints/centralized_sparse_magnitude_highest.pth
