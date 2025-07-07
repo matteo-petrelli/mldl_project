@@ -82,10 +82,8 @@ def resume_if_possible(cfg, model):
             print(f"[Checkpoint Warning] Failed to load checkpoint: {e}")
     return start_round, logger
 
-# --- MODIFICA 1: La funzione ora accetta una `existing_mask` e restituisce la maschera usata ---
 def train_local_sparse(model, dataloader, criterion, device, cfg, existing_mask=None):
     mask_dict = {}
-
     if existing_mask is not None:
         mask_dict = existing_mask
     else:
@@ -114,7 +112,6 @@ def train_local_sparse(model, dataloader, criterion, device, cfg, existing_mask=
             loss.backward()
             optimizer.step()
     
-    # Restituisce lo stato del modello e la maschera che è stata usata/calcolata
     return model.state_dict(), mask_dict
 
 def main(args):
@@ -135,17 +132,19 @@ def main(args):
     criterion = nn.CrossEntropyLoss()
     start_round, logger = resume_if_possible(cfg, global_model)
 
-    # --- MODIFICA 2: Aggiungi logica per la gestione delle maschere e dei round di calibrazione ---
-    client_masks = {} # Dizionario per memorizzare le maschere finali per ogni client
-    # Se non specificato, ogni round è di calibrazione (comportamento originale)
-    calibration_rounds = cfg.get("calibration_rounds", cfg["rounds"])
+    client_masks = {}
+    # --- MODIFICA 1: La variabile ora definisce l'intervallo di ricalibrazione ---
+    calibration_interval = cfg.get("calibration_interval", 0) # Default 0 = nessuna ricalibrazione periodica
 
     for round_num in range(start_round, cfg["rounds"] + 1):
+        # --- MODIFICA 2: La condizione ora usa il modulo (%) per la periodicità ---
+        is_recalibration_round = (calibration_interval > 0 and round_num % calibration_interval == 0)
+
         print(f"\n--- Round {round_num}/{cfg['rounds']} ---")
-        if round_num <= calibration_rounds:
-            print("Mode: 🛠️  CALIBRATION ROUND")
+        if is_recalibration_round:
+            print("Mode: 🔄 PERIODIC RECALIBRATION")
         else:
-            print("Mode: 💪 FINE-TUNING ROUND (using fixed masks)")
+            print("Mode: 💪 FINE-TUNING (using last known masks)")
 
         local_models = []
         selected_clients = torch.randperm(cfg["K"])[:int(cfg["K"] * cfg["C"])]
@@ -156,27 +155,26 @@ def main(args):
             client_model.to(device)
             client_loader = DataLoader(client_datasets[client_id], batch_size=cfg["batch_size"], shuffle=True)
             
-            # Decide se usare una maschera esistente o calcolarne una nuova
+            # --- MODIFICA 3: La logica di decisione si adatta al nuovo scheduling ---
             mask_to_use = None
-            if round_num > calibration_rounds:
+            if not is_recalibration_round:
+                # Se non è un round di ricalibrazione, prova a usare una maschera esistente
                 mask_to_use = client_masks.get(client_id, None)
-
-            # Esegui il training locale, che restituirà anche la maschera utilizzata
+            
+            # Se is_recalibration_round è True, mask_to_use rimane None, forzando un ricalcolo.
+            # La funzione train_local_sparse gestisce già il caso in cui un client nuovo
+            # non abbia una maschera, calcolandone una al volo.
             local_state, used_mask = train_local_sparse(client_model, client_loader, criterion, device, cfg, existing_mask=mask_to_use)
             local_models.append(local_state)
             
-            # Salva la maschera calcolata/usata per il client
+            # Aggiorna sempre il dizionario con la maschera più recente per il client
             client_masks[client_id] = used_mask
             
         global_model = aggregate_models(global_model, local_models)
         test_loss, test_acc = evaluate(global_model, test_loader, criterion, device)
         print(f"Test Accuracy: {test_acc*100:.2f}%")
 
-        logger.log({
-            "round": round_num,
-            "test_loss": test_loss,
-            "test_acc": test_acc
-        })
+        logger.log({ "round": round_num, "test_loss": test_loss, "test_acc": test_acc })
 
         if round_num % cfg.get("save_every", 10) == 0:
             os.makedirs(os.path.dirname(cfg["checkpoint_path"]), exist_ok=True)
@@ -184,7 +182,6 @@ def main(args):
             if "checkpoint_drive_path" in cfg:
                 os.makedirs(os.path.dirname(cfg["checkpoint_drive_path"]), exist_ok=True)
                 shutil.copy(cfg["checkpoint_path"], cfg["checkpoint_drive_path"])
-        
             if "log_drive_path" in cfg:
                 os.makedirs(os.path.dirname(cfg["log_drive_path"]), exist_ok=True)
                 if os.path.exists(cfg["log_path"]):
