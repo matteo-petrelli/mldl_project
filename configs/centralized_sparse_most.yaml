@@ -1,9 +1,10 @@
 batch_size: 64
 fisher_batch_size: 1  
-epochs: 20
+epochs: 15
 lr: 0.01
 weight_decay: 0.0005
 early_stopping_patience: 3
+calibration_rounds: 3
 sparsity_ratio: 0.5  
 mask_calibration_rule: sensitivity_most   #or sensitivity_least, magnitude_highest, magnitude_lowest, random
 checkpoint_path: ./checkpoints/centralized_sparse_2.pth
