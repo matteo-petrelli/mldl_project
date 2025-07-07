@@ -8,7 +8,7 @@ lr: 0.01
 batch_size: 32          
 calibration_rounds: 5
 mask_calibration_rule: "random" #sensitivity_least, magnitude_highest, magnitude_lowest, sensitivity_most
-sparsity_ratio: 0.5
+sparsity_ratio: 0.8
 save_every: 10  
 checkpoint_path: "./checkpoints/federated_sparse_nonidd_random.pth"
 log_path: "./logs/federated_sparse_nonidd_random.json"
