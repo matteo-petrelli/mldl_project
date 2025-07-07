@@ -1,7 +1,7 @@
 K: 100          
 C: 0.1        
 J: 4            
-rounds: 50    
+rounds: 30   
 sharding: "iid"
 lr: 0.01                
 batch_size: 32          
