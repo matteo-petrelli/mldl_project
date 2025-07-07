@@ -1,12 +1,12 @@
 batch_size: 64
 fisher_batch_size: 1  
-epochs: 15
+epochs: 10
 lr: 0.01
 weight_decay: 0.0005
 early_stopping_patience: 3
 calibration_rounds: 5
-sparsity_ratio: 0.5  
-mask_calibration_rule: random   #or sensitivity_least, magnitude_highest, magnitude_lowest, random
+sparsity_ratio: 0.8  
+mask_calibration_rule: random   #or sensitivity_least, sensitivity_most, magnitude_highest, magnitude_lowest, 
 checkpoint_path: ./checkpoints/centralized_sparse_random.pth
 checkpoint_drive_path: /content/drive/MyDrive/mldl_checkpoints/centralized_sparse_random.pth
 log_path: ./logs/centralized_sparse_random.json
