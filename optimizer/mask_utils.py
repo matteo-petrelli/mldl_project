@@ -77,40 +77,58 @@ def build_mask_by_sensitivity(fisher_dict: dict, sparsity_ratio: float, pick_lea
     return mask
 
 
+# Inserisci questa funzione aggiornata in optimizer/mask_utils.py
+
 def build_mask_by_magnitude(model, sparsity_ratio: float, pick_highest_magnitude: bool = True) -> dict:
     """
     Creates a binary mask based on the absolute magnitude of model weights.
-    If pick_highest_magnitude is True, it selects (mask=1) parameters with higher magnitude for update.
-    Otherwise, it selects (mask=1) parameters with lower magnitude for update.
-
-    Args:
-        model (torch.nn.Module): The PyTorch model.
-        sparsity_ratio (float): Percentage of parameters to NOT update (mask to 0).
-        pick_highest_magnitude (bool): If True, parameters with HIGHEST magnitude are SELECTED.
-                                       If False, parameters with LOWEST magnitude are SELECTED.
-    Returns:
-        dict: Mask dictionary per parameter.
+    Includes sampling for large models to prevent memory errors.
     """
-    all_magnitudes = torch.cat([p.data.abs().view(-1) for n, p in model.named_parameters() if p.requires_grad])
+    # 1. Raccogli le magnitudo in una lista invece di concatenarle subito
+    all_magnitudes_list = [p.data.abs().view(-1) for n, p in model.named_parameters() if p.requires_grad]
 
-    # Calculate the threshold
-    threshold = torch.quantile(all_magnitudes, sparsity_ratio)
+    # 2. Implementa la logica di campionamento (copiata da build_mask_by_sensitivity)
+    sample_size = 1_000_000
+    total_elements = sum(p.numel() for p in all_magnitudes_list)
 
+    if total_elements > sample_size * 2:
+        # Se il modello è troppo grande, calcola il quantile su un campione
+        sampled_elements = []
+        # Per un campionamento più robusto, si potrebbe permutare ogni tensore,
+        # ma per semplicità prendiamo elementi proporzionalmente.
+        for magnitudes in all_magnitudes_list:
+            num_to_sample = int(round((magnitudes.numel() / total_elements) * sample_size))
+            if num_to_sample > 0:
+                perm = torch.randperm(magnitudes.numel(), device=magnitudes.device)
+                sampled_elements.append(magnitudes.view(-1)[perm[:num_to_sample]])
+        
+        if sampled_elements:
+            sampled_all_magnitudes = torch.cat(sampled_elements)
+            threshold = torch.quantile(sampled_all_magnitudes, sparsity_ratio)
+            print(f"Warning: Magnitude quantile calculated on a sample of {sampled_all_magnitudes.numel()} elements.")
+        else:
+            # Fallback nel caso improbabile che non venga campionato nulla
+            all_magnitudes = torch.cat(all_magnitudes_list)
+            threshold = torch.quantile(all_magnitudes, sparsity_ratio)
+
+    else:
+        # Se il modello è abbastanza piccolo, usa il metodo originale
+        all_magnitudes = torch.cat(all_magnitudes_list)
+        threshold = torch.quantile(all_magnitudes, sparsity_ratio)
+
+    # 3. La logica per creare la maschera rimane invariata
     mask = {}
     for name, p in model.named_parameters():
         if p.requires_grad:
             if pick_highest_magnitude:
-                # Select parameters with HIGHER magnitude (>= threshold)
                 mask[name] = (p.data.abs() >= threshold).float()
             else:
-                # Select parameters with LOWER magnitude (< threshold)
                 mask[name] = (p.data.abs() < threshold).float()
         else:
-            # If the parameter does not require gradients, it should not be masked/updated.
-            # We set its mask to 1 by default (it won't be touched by the optimizer if requires_grad=False)
             mask[name] = torch.ones_like(p.data)
+            
     return mask
-
+    
 def build_mask_randomly(model, sparsity_ratio: float) -> dict:
     """
     Creates a binary mask by randomly selecting parameters.
