@@ -21,7 +21,7 @@ from optimizer.mask_utils import (
 )
 
 def resume_if_possible(cfg, model, optimizer, scheduler):
-    log_path = cfg.get('log_drive_path', cfg['log_path'])
+    log_path = cfg['log_path']
     logger = MetricLogger(log_path)
     start_epoch = 0
 
