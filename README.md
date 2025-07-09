@@ -1,22 +1,35 @@
-# Federated Learning Project
-This repository contains code for training Vision Transformers (ViTs) using centralized and federated learning approaches, with support for sparse optimization.
+# MLDL_PROJECT-MAIN
+
+This repository provides code for training Vision Transformers (ViTs) using both centralized and federated learning approaches, with support for sparse fine-tuning using various mask calibration strategies.
 
 ## Folder Structure
 
-- `configs/`: YAML configuration files for different training setups.
-- `data/`: Data loading utilities. Includes `cifar100_loader.py` for loading the CIFAR-100 dataset.
-- `experiments/`: Contains scripts for running experiments:
+- `configs/`: YAML configuration files for setting up different experiments.
+- `data/`: Dataset loader scripts.
+  - `cifar100_loader.py`: Loads the CIFAR-100 dataset.
+- `experiments/`: Main training scripts:
   - `centralized_training.py`: Standard centralized training.
-  - `centralized_sparse.py`: Centralized training with sparse optimization.
-  - `federated_training.py`: Federated training.
-  - `federated_sparse.py`: Federated training with sparse optimization.
-- `models/`: Model architectures. Includes `vit_dino.py` (Vision Transformer based on DINO).
-- `optimizer/`: Sparse optimization utilities:
-  - `sparseSGDM.py`: Sparse SGD optimizer.
-  - `mask_utils.py`: Functions for creating and managing sparse masks.
-- `utils/`: Utility scripts for logging and checkpointing:
-  - `logger.py`, `checkpoint.py`.
-- `requirements.txt`: Python dependencies.
+  - `centralized_sparse.py`: Centralized training with sparse fine-tuning.
+  - `federated_training.py`: Federated learning based on the FedAvg algorithm.
+  - `federated_sparse.py`: Federated sparse fine-tuning using FedAvg and different mask calibration rules.
+- `models/`: Model definitions.
+  - `vit_dino.py`: Vision Transformer model initialized from DINO pretraining.
+- `optimizer/`: Sparse optimization utilities.
+  - `sparseSGDM.py`: Sparse SGD optimizer implementation.
+  - `mask_utils.py`: Utilities for generating and applying sparse masks.
+- `utils/`: Support utilities.
+  - `logger.py`: Logging utilities.
+  - `checkpoint.py`: Checkpointing and saving model states.
+- `requirements.txt`: List of required Python packages.
+
+## Setup
+
+Clone the repository and install the required dependencies:
+
+```bash
+git clone <repository_url>
+cd MLDL_PROJECT-MAIN
+pip install -r requirements.txt
 
 ## Running an Experiment
 
