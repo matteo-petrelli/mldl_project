@@ -272,6 +272,8 @@ def main(args):
                     print(f"[Log] Copied to Drive: {cfg['log_drive_path']}")
                 else:
                     print(f"[Log Warning] Log file '{cfg['log_path']}' does not exist and was not copied.")
+    print("\n--- Generating final plot ---")
+    generate_and_save_plot(logger.get_all(), args.config)    
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
