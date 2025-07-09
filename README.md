@@ -27,15 +27,16 @@ This repository provides code for training Vision Transformers (ViTs) using both
 Clone the repository and install the required dependencies:
 
 ```bash
-
+## You can mount drive, logs and checkpoint will be saved there too:
+from google.colab import drive
+drive.mount('/content/drive')
 
 !git clone https://github.com/matteo-petrelli/mldl_project
 %cd /content/mldl_project
 !pip install -r requirements.txt
 
 ## Running an Experiment
-
-To run an experiment, clone the repository, install the dependencies, and use a command like the following (example for federated sparse training):
+##To run an experiment, clone the repository, install the dependencies, and use a command like the following (example for federated sparse training):
 import sys
 %cd /content/mldl_project
 import os
