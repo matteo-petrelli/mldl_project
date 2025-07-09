@@ -7,6 +7,7 @@ import argparse
 import yaml
 import json
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 import shutil
 
 # Import project-specific modules
@@ -14,6 +15,63 @@ from data.cifar100_loader import get_transforms, load_cifar100
 from utils.checkpoint import save_checkpoint, load_checkpoint
 from utils.logger import MetricLogger
 from models.vit_dino import get_dino_vit_s16 
+
+def generate_and_save_plot(metrics, config_filename):
+    """
+    Generates and saves a plot with training and validation results.
+    The plot is saved in a 'plots' directory created in the current folder.
+    """
+    # Check if there is data to plot
+    if not metrics:
+        print("Warning: No metrics data to plot.")
+        return
+
+    # --- Automatic Path and Filename Generation ---
+    # Define the output directory for plots
+    plots_dir = "plots"
+    # Create the directory if it does not exist
+    os.makedirs(plots_dir, exist_ok=True)
+
+    # Generate a filename from the config file name
+    base_name = os.path.basename(config_filename)
+    name_without_ext = os.path.splitext(base_name)[0]
+    output_path = os.path.join(plots_dir, f"{name_without_ext}.png")
+    # --- End of Automatic Path Logic ---
+
+    # Extract data for plotting
+    epochs = [m.get('epoch', i + 1) for i, m in enumerate(metrics)]
+    train_acc = [m['train_acc'] for m in metrics]
+    val_acc = [m['val_acc'] for m in metrics]
+    train_loss = [m['train_loss'] for m in metrics]
+    val_loss = [m['val_loss'] for m in metrics]
+
+    # Create figure and subplots
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
+    fig.suptitle(f"Training Results for: {name_without_ext}", fontsize=16, weight='bold')
+
+    # Plot Accuracy
+    ax1.plot(epochs, train_acc, 'o-', label='Train Accuracy')
+    ax1.plot(epochs, val_acc, 'o-', label='Validation Accuracy')
+    ax1.set_ylabel('Accuracy')
+    ax1.set_title('Accuracy Trends', fontsize=12)
+    ax1.legend()
+    ax1.grid(True, linestyle='--', alpha=0.6)
+
+    # Plot Loss
+    ax2.plot(epochs, train_loss, 'o--', label='Train Loss')
+    ax2.plot(epochs, val_loss, 'o--', label='Validation Loss')
+    ax2.set_xlabel('Epoch')
+    ax2.set_ylabel('Loss')
+    ax2.set_title('Loss Trends', fontsize=12)
+    ax2.legend()
+    ax2.grid(True, linestyle='--', alpha=0.6)
+
+    # Adjust layout and save the figure
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig(output_path, dpi=300)
+    print(f" Plot successfully saved to: {output_path}")
+    plt.close()
+
 
 def load_vit_dino_backbone(num_classes):
     """Loads the DINO ViT model and freezes all layers except the final classification head."""
@@ -202,6 +260,7 @@ def main(args):
     # Final evaluation on the test set after training is complete
     test_loss, test_acc = evaluate(model, test_loader, criterion, device)
     print(f"\nTest Accuracy: {test_acc*100:.2f}%")
+    generate_and_save_plot(logger.get_all(), args.config)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
