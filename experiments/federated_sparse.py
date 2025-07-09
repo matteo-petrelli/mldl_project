@@ -9,6 +9,7 @@ from copy import deepcopy
 from torch.utils.data import DataLoader
 import json
 import shutil
+import matplotlib.pyplot as plt 
 
 # Import project-specific modules
 from data.cifar100_loader import get_transforms, load_cifar100, iid_split, noniid_split
@@ -23,6 +24,54 @@ from optimizer.mask_utils import (
     build_mask_randomly
 )
 
+def generate_and_save_plot(metrics, config_filename):
+    """
+    Generates and saves a plot with federated training results.
+    The plot is saved in a 'plots' directory created in the current folder.
+    """
+    # Check if there is data to plot
+    if not metrics:
+        print("Warning: No metrics data to plot.")
+        return
+
+    # --- Automatic Path and Filename Generation ---
+    plots_dir = "plots"
+    os.makedirs(plots_dir, exist_ok=True)
+    base_name = os.path.basename(config_filename)
+    name_without_ext = os.path.splitext(base_name)[0]
+    output_path = os.path.join(plots_dir, f"{name_without_ext}.png")
+
+    # --- Data Extraction for Federated Learning ---
+    # The x-axis is 'round' for federated learning
+    rounds = [m['round'] for m in metrics]
+    test_acc = [m['test_acc'] for m in metrics]
+    test_loss = [m['test_loss'] for m in metrics]
+
+    # Create figure and subplots
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
+    fig.suptitle(f"Federated Training Results for: {name_without_ext}", fontsize=16, weight='bold')
+
+    # Plot Test Accuracy
+    ax1.plot(rounds, test_acc, 'o-', label='Test Accuracy')
+    ax1.set_ylabel('Accuracy')
+    ax1.set_title('Test Accuracy Trend', fontsize=12)
+    ax1.legend()
+    ax1.grid(True, linestyle='--', alpha=0.6)
+
+    # Plot Test Loss
+    ax2.plot(rounds, test_loss, 'o--', label='Test Loss')
+    ax2.set_xlabel('Round')
+    ax2.set_ylabel('Loss')
+    ax2.set_title('Test Loss Trend', fontsize=12)
+    ax2.legend()
+    ax2.grid(True, linestyle='--', alpha=0.6)
+
+    # Adjust layout and save the figure
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig(output_path, dpi=300)
+    print(f"✅ Plot successfully saved to: {output_path}")
+    plt.close()
+
 def aggregate_models(global_model, local_models):
     """Averages the state dictionaries of local models to update the global model."""
     global_state = global_model.state_dict()
@@ -31,6 +80,7 @@ def aggregate_models(global_model, local_models):
         global_state[key] = torch.stack([client_state[key].float() for client_state in local_models], dim=0).mean(dim=0)
     global_model.load_state_dict(global_state)
     return global_model
+    
 
 def evaluate(model, dataloader, criterion, device):
     """Evaluates the model on a given dataset."""
