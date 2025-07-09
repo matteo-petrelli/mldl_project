@@ -6,6 +6,7 @@ import argparse
 import yaml
 import json
 import shutil
+import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 # Import model, data loader, and utility functions
