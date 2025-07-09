@@ -1,25 +1,27 @@
-# mldl_project
-Federeted Learning Project
-This repository contains implementations for centralized and federated learning experiments, including sparse update mechanisms, using a DINO ViT-S/16 backbone on the CIFAR-100 dataset.
-Setup
-Clone the repository:
+# MLDL_PROJECT-MAIN
 
-git clone https://github.com/your-username/MLDL_PROJECT-MAIN.git
-cd MLDL_PROJECT-MAIN
+This repository contains code for training Vision Transformers (ViTs) using centralized and federated learning approaches, with support for sparse optimization.
 
-Install dependencies:
+## Folder Structure
 
-pip install -r requirements.txt
+- `configs/`: YAML configuration files for different training setups.
+- `data/`: Data loading utilities. Includes `cifar100_loader.py` for loading the CIFAR-100 dataset.
+- `experiments/`: Contains scripts for running experiments:
+  - `centralized_training.py`: Standard centralized training.
+  - `centralized_sparse.py`: Centralized training with sparse optimization.
+  - `federated_training.py`: Federated training.
+  - `federated_sparse.py`: Federated training with sparse optimization.
+- `models/`: Model architectures. Includes `vit_dino.py` (Vision Transformer based on DINO).
+- `optimizer/`: Sparse optimization utilities:
+  - `sparseSGDM.py`: Sparse SGD optimizer.
+  - `mask_utils.py`: Functions for creating and managing sparse masks.
+- `utils/`: Utility scripts for logging and checkpointing:
+  - `logger.py`, `checkpoint.py`.
+- `requirements.txt`: Python dependencies.
 
-How to Run Experiments
-Experiments are configured via YAML files located in the configs/ directory.
+## Running an Experiment
 
-To run an experiment, use the following command format:
+To run an experiment, clone the repository, install the dependencies, and use a command like the following (example for federated sparse training):
 
-python3 experiments/<experiment_script_name>.py --config configs/<config_file_name>.yaml
-
-Example (for Google Colab after cloning and setting as reference folder):
-
+```bash
 !python3 experiments/federated_sparse.py --config configs/federated_sparse_nonidd_1.yaml
-
-Replace federated_sparse.py with the desired experiment script and federated_sparse_nonidd_1.yaml with the appropriate configuration file.
