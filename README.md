@@ -1,5 +1,4 @@
-# MLDL_PROJECT-MAIN
-
+# Federated Learning Project
 This repository contains code for training Vision Transformers (ViTs) using centralized and federated learning approaches, with support for sparse optimization.
 
 ## Folder Structure
