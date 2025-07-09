@@ -2,7 +2,7 @@ K: 100
 C: 0.1        
 J: 4 
 Nc: 50
-rounds: 50    
+rounds: 30  
 sharding: "noniid"
 lr: 0.01                
 batch_size: 32          
