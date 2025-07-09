@@ -9,24 +9,25 @@ import json
 from tqdm import tqdm
 import shutil
 
+# Import project-specific modules
 from data.cifar100_loader import get_transforms, load_cifar100
 from utils.checkpoint import save_checkpoint, load_checkpoint
 from utils.logger import MetricLogger
 from models.vit_dino import get_dino_vit_s16 
 
-# You can replace this with the actual DINO ViT-S/16 implementation or load from torchvision if available
 def load_vit_dino_backbone(num_classes):
+    """Loads the DINO ViT model and freezes all layers except the final classification head."""
     model = get_dino_vit_s16(num_classes)
+    # Freeze all parameters
     for param in model.parameters():
         param.requires_grad = False
+    # Unfreeze the parameters of the head for training
     for param in model.head.parameters():
         param.requires_grad = True
     return model
     
 def resume_if_possible(cfg, model, optimizer, scheduler):
-    """
-    Resume training from checkpoint and logs. Prioritizes Drive checkpoint/log if available.
-    """
+    """Resumes training from a checkpoint and log file if they exist."""
     # Prefer log from Drive if it exists
     log_path = cfg.get('log_drive_path', cfg['log_path'])
     logger = MetricLogger(save_path=log_path)
@@ -43,7 +44,7 @@ def resume_if_possible(cfg, model, optimizer, scheduler):
         except Exception as e:
             print(f"[Logger Warning] Failed to load previous logs: {e}")
 
-    # Checkpoint resume: prefer Drive path
+    # Checkpoint resume: prefer Drive path if available
     resume_path = None
     if os.path.exists(cfg.get("checkpoint_drive_path", "")):
         resume_path = cfg["checkpoint_drive_path"]
@@ -57,24 +58,24 @@ def resume_if_possible(cfg, model, optimizer, scheduler):
 
     return start_epoch, logger
 
-
-
 def train_one_epoch(model, dataloader, criterion, optimizer, device):
+    """Runs a single epoch of training."""
     model.train()
-    total_loss = 0
-    correct = 0
-    total = 0
+    total_loss, correct, total = 0, 0, 0
 
     for images, labels in tqdm(dataloader, desc="Training"):
         images, labels = images.to(device), labels.to(device)
 
+        # Forward pass
         outputs = model(images)
         loss = criterion(outputs, labels)
 
+        # Backward pass and optimization
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
+        # Update metrics
         total_loss += loss.item()
         _, predicted = torch.max(outputs, 1)
         total += labels.size(0)
@@ -85,18 +86,19 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device):
     return avg_loss, accuracy
 
 def evaluate(model, dataloader, criterion, device):
+    """Evaluates the model's performance on the validation set."""
     model.eval()
-    total_loss = 0
-    correct = 0
-    total = 0
+    total_loss, correct, total = 0, 0, 0
 
     with torch.no_grad():
         for images, labels in tqdm(dataloader, desc="Validation"):
             images, labels = images.to(device), labels.to(device)
 
+            # Forward pass
             outputs = model(images)
             loss = criterion(outputs, labels)
 
+            # Update metrics
             total_loss += loss.item()
             _, predicted = torch.max(outputs, 1)
             total += labels.size(0)
@@ -107,27 +109,34 @@ def evaluate(model, dataloader, criterion, device):
     return avg_loss, accuracy
 
 def main(args):
+    # Load configuration from YAML file
     with open(args.config, "r") as f:
         cfg = yaml.safe_load(f)
 
+    # Set up device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    # Load data
     train_tf, test_tf = get_transforms()
     trainset, valset, testset = load_cifar100(train_tf, test_tf)
 
+    # Create data loaders
     train_loader = DataLoader(trainset, batch_size=cfg['batch_size'], shuffle=True, num_workers=2)
     val_loader = DataLoader(valset, batch_size=cfg['batch_size'], shuffle=False, num_workers=2)
     test_loader = DataLoader(testset, batch_size=cfg['batch_size'], shuffle=False, num_workers=2)
 
+    # Initialize model, criterion, optimizer, and scheduler
     model = load_vit_dino_backbone(num_classes=100).to(device)
     criterion = nn.CrossEntropyLoss()
     
+    # Optimizer only considers parameters that require gradients
     optimizer = optim.SGD(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=cfg['lr'],
         momentum=0.9,
         weight_decay=cfg['weight_decay']
     )
+    
     if cfg["scheduler"] == "cosine":
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg["epochs"])
     elif cfg["scheduler"] == "step":
@@ -135,12 +144,14 @@ def main(args):
     else:
         scheduler = None
 
+    # Resume training if a checkpoint exists
     start_epoch, logger = resume_if_possible(cfg, model, optimizer, scheduler)
 
     best_val_acc = 0.0
     patience = cfg.get("early_stopping_patience", 5)
     patience_counter = 0
 
+    # Main training loop
     for epoch in range(start_epoch, cfg['epochs']):
         print(f"\nEpoch {epoch+1}/{cfg['epochs']}")
         train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device)
@@ -148,6 +159,7 @@ def main(args):
         if scheduler is not None:
             scheduler.step()
 
+        # Log metrics for the epoch
         logger.log({
             "epoch": epoch + 1,
             "train_loss": train_loss,
@@ -155,23 +167,25 @@ def main(args):
             "val_loss": val_loss,
             "val_acc": val_acc
         })
-        # === Early stopping ===
+        
+        # Early stopping logic
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            patience_counter = 0  # reset patience
+            patience_counter = 0
         else:
             patience_counter += 1
-            print(f"🕓 Early stopping patience: {patience_counter}/{patience}")
+            print(f"Early stopping patience: {patience_counter}/{patience}")
             
         if patience_counter >= patience:
-            print(f"\n⛔ Early stopping activated at {epoch+1} (val_acc hasn't improved for {patience} epochs)")
+            print(f"\nEarly stopping activated at {epoch+1} (val_acc hasn't improved for {patience} epochs)")
             break
 
-        # === Checkpoint standard ===
+        # === Standard checkpointing ===
         os.makedirs(os.path.dirname(cfg['checkpoint_path']), exist_ok=True)
         os.makedirs(os.path.dirname(cfg['log_path']), exist_ok=True)
         save_checkpoint(model, optimizer, scheduler, epoch + 1, path=cfg['checkpoint_path'])
 
+        # Backup checkpoint and logs to a secondary location (e.g., Google Drive)
         os.makedirs(os.path.dirname(cfg['checkpoint_drive_path']), exist_ok=True)
         shutil.copy(cfg['checkpoint_path'], cfg['checkpoint_drive_path'])
 
@@ -179,18 +193,15 @@ def main(args):
             os.makedirs(os.path.dirname(cfg["log_drive_path"]), exist_ok=True)
             if os.path.exists(cfg['log_path']):
                 shutil.copy(cfg['log_path'], cfg["log_drive_path"])
-                print(f"Log locale: {cfg['log_path']}")
-                print(f"Log Drive: {cfg['log_drive_path']}")
+                print(f"Local log: {cfg['log_path']}")
+                print(f"Drive log: {cfg['log_drive_path']}")
 
-        print(f"Checkpoint locale salvato: {cfg['checkpoint_path']}")
-        print(f"Checkpoint backup Drive: {cfg['checkpoint_drive_path']}")
+        print(f"Local checkpoint saved: {cfg['checkpoint_path']}")
+        print(f"Drive backup checkpoint: {cfg['checkpoint_drive_path']}")
 
-
-    # Test after training
+    # Final evaluation on the test set after training is complete
     test_loss, test_acc = evaluate(model, test_loader, criterion, device)
     print(f"\nTest Accuracy: {test_acc*100:.2f}%")
-
-    
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
