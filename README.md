@@ -1,4 +1,4 @@
-# MLDL_PROJECT-MAIN
+# Federated Learning experiments
 
 This repository provides code for training Vision Transformers (ViTs) using both centralized and federated learning approaches, with support for sparse fine-tuning using various mask calibration strategies.
 
