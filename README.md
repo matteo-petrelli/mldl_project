@@ -9,7 +9,7 @@ This repository provides code for training Vision Transformers (ViTs) using both
   - `cifar100_loader.py`: Loads the CIFAR-100 dataset.
 - `experiments/`: Main training scripts:
   - `centralized_training.py`: Standard centralized training.
-  - `centralized_sparse.py`: Centralized training with sparse fine-tuning.
+  - `centralized_sparse.py`: Centralized training with sparse fine-tuning and different mask calibration rules.
   - `federated_training.py`: Federated learning based on the FedAvg algorithm.
   - `federated_sparse.py`: Federated sparse fine-tuning using FedAvg and different mask calibration rules.
 - `models/`: Model definitions.
