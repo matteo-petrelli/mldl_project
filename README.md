@@ -27,13 +27,17 @@ This repository provides code for training Vision Transformers (ViTs) using both
 Clone the repository and install the required dependencies:
 
 ```bash
-git clone <repository_url>
-cd MLDL_PROJECT-MAIN
-pip install -r requirements.txt
+
+
+!git clone https://github.com/matteo-petrelli/mldl_project
+%cd /content/mldl_project
+!pip install -r requirements.txt
 
 ## Running an Experiment
 
 To run an experiment, clone the repository, install the dependencies, and use a command like the following (example for federated sparse training):
-
-```bash
+import sys
+%cd /content/mldl_project
+import os
+os.environ['PYTHONPATH'] = '/content/mldl_project'
 !python3 experiments/federated_sparse.py --config configs/federated_sparse_nonidd_1.yaml
